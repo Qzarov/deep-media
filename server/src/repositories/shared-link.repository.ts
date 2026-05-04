@@ -166,6 +166,8 @@ export class SharedLinkRepository {
         'shared_link.allowUpload',
         'shared_link.allowDownload',
         'shared_link.password',
+        'shared_link.viewCount',
+        'shared_link.visitLimit',
         jsonObjectFrom(
           eb.selectFrom('user').select(columns.authUser).whereRef('user.id', '=', 'shared_link.userId'),
         ).as('user'),
@@ -210,6 +212,15 @@ export class SharedLinkRepository {
 
   async remove(id: string): Promise<void> {
     await this.db.deleteFrom('shared_link').where('shared_link.id', '=', id).execute();
+  }
+
+  @GenerateSql({ params: [DummyValue.UUID] })
+  async incrementViewCount(id: string): Promise<void> {
+    await this.db
+      .updateTable('shared_link')
+      .set((eb) => ({ viewCount: sql`${eb.ref('shared_link.viewCount')} + 1` }))
+      .where('shared_link.id', '=', id)
+      .execute();
   }
 
   @ChunkedArray({ paramIndex: 1 })

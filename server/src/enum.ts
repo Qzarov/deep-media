@@ -67,6 +67,38 @@ export enum AlbumUserRole {
 
 export const AlbumUserRoleSchema = z.enum(AlbumUserRole).describe('Album user role').meta({ id: 'AlbumUserRole' });
 
+export enum FolderUserRole {
+  Owner = 'owner',
+  Administrator = 'administrator',
+  Editor = 'editor',
+  Contributor = 'contributor',
+  ViewerDownload = 'viewer_download',
+  Viewer = 'viewer',
+}
+
+export const FolderUserRoleSchema = z.enum(FolderUserRole).describe('Folder user role').meta({ id: 'FolderUserRole' });
+
+export const FolderUserRoleWeight: Record<FolderUserRole, number> = {
+  [FolderUserRole.Viewer]: 1,
+  [FolderUserRole.ViewerDownload]: 2,
+  [FolderUserRole.Contributor]: 3,
+  [FolderUserRole.Editor]: 4,
+  [FolderUserRole.Administrator]: 5,
+  [FolderUserRole.Owner]: 6,
+};
+
+export enum FolderEffect {
+  Allow = 'allow',
+  Deny = 'deny',
+}
+
+export const FolderEffectSchema = z.enum(FolderEffect).describe('Folder ACL effect').meta({ id: 'FolderEffect' });
+
+export function getFolderRolesAtOrAbove(minRole: FolderUserRole): FolderUserRole[] {
+  const minWeight = FolderUserRoleWeight[minRole];
+  return Object.values(FolderUserRole).filter((r) => FolderUserRoleWeight[r] >= minWeight);
+}
+
 export enum AssetOrder {
   Asc = 'asc',
   Desc = 'desc',
@@ -163,6 +195,8 @@ export enum Permission {
   FolderUpdate = 'folder.update',
   FolderDelete = 'folder.delete',
   FolderShare = 'folder.share',
+  FolderDownload = 'folder.download',
+  FolderUpload = 'folder.upload',
 
   FolderUserCreate = 'folderUser.create',
   FolderUserUpdate = 'folderUser.update',

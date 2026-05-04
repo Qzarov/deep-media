@@ -67,6 +67,8 @@ const authSharedLinkFactory = (sharedLink: Partial<AuthSharedLink> = {}) => {
     allowUpload = false,
     allowDownload = true,
     password = null,
+    viewCount = 0,
+    visitLimit = null,
   } = sharedLink;
 
   return {
@@ -78,6 +80,8 @@ const authSharedLinkFactory = (sharedLink: Partial<AuthSharedLink> = {}) => {
     allowUpload,
     allowDownload,
     password,
+    viewCount,
+    visitLimit,
   };
 };
 

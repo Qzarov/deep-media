@@ -9,8 +9,8 @@ import {
   UpdateDateColumn,
 } from '@immich/sql-tools';
 import { UpdatedAtTrigger, UpdateIdColumn } from 'src/decorators';
-import { AlbumUserRole } from 'src/enum';
-import { album_user_role_enum } from 'src/schema/enums';
+import { FolderEffect, FolderUserRole } from 'src/enum';
+import { folder_user_role_enum } from 'src/schema/enums';
 import { FolderTable } from 'src/schema/tables/folder.table';
 import { UserTable } from 'src/schema/tables/user.table';
 
@@ -19,7 +19,7 @@ import { UserTable } from 'src/schema/tables/user.table';
   name: 'folder_user_unique_owner',
   columns: ['folderId'],
   unique: true,
-  where: `role = 'owner'`,
+  where: `role = 'owner' AND effect = 'allow'`,
 })
 @UpdatedAtTrigger('folder_user_updatedAt')
 export class FolderUserTable {
@@ -39,8 +39,20 @@ export class FolderUserTable {
   })
   userId!: string;
 
-  @Column({ enum: album_user_role_enum, default: AlbumUserRole.Editor })
-  role!: Generated<AlbumUserRole>;
+  @Column({ enum: folder_user_role_enum, default: FolderUserRole.Editor })
+  role!: Generated<FolderUserRole>;
+
+  @Column({ type: 'character varying', default: FolderEffect.Allow })
+  effect!: Generated<FolderEffect>;
+
+  @Column({ type: 'jsonb', default: "'{}'" })
+  restrictions!: Generated<string>;
+
+  @Column({ type: 'timestamp', nullable: true })
+  validFrom!: Timestamp | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  validUntil!: Timestamp | null;
 
   @CreateDateColumn()
   createdAt!: Generated<Timestamp>;

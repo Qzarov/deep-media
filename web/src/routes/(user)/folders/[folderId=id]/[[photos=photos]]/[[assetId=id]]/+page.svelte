@@ -1,13 +1,11 @@
 <script lang="ts">
   import { afterNavigate, goto, invalidateAll } from '$app/navigation';
   import ActionMenuItem from '$lib/components/ActionMenuItem.svelte';
-  import UserPageLayout, { headerId } from '$lib/components/layouts/UserPageLayout.svelte';
+  import FolderBreadcrumbs from '$lib/components/folders/FolderBreadcrumbs.svelte';
+  import FolderGrid from '$lib/components/folders/FolderGrid.svelte';
+  import UserPageLayout from '$lib/components/layouts/UserPageLayout.svelte';
   import ButtonContextMenu from '$lib/components/shared-components/context-menu/ButtonContextMenu.svelte';
   import GalleryViewer from '$lib/components/shared-components/gallery-viewer/GalleryViewer.svelte';
-  import Breadcrumbs from '$lib/components/shared-components/tree/Breadcrumbs.svelte';
-  import TreeItemThumbnails from '$lib/components/shared-components/tree/TreeItemThumbnails.svelte';
-  import TreeItems from '$lib/components/shared-components/tree/TreeItems.svelte';
-  import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
   import ArchiveAction from '$lib/components/timeline/actions/ArchiveAction.svelte';
   import ChangeDate from '$lib/components/timeline/actions/ChangeDateAction.svelte';
   import ChangeDescription from '$lib/components/timeline/actions/ChangeDescriptionAction.svelte';
@@ -19,21 +17,27 @@
   import SetVisibilityAction from '$lib/components/timeline/actions/SetVisibilityAction.svelte';
   import TagAction from '$lib/components/timeline/actions/TagAction.svelte';
   import AssetSelectControlBar from '$lib/components/timeline/AssetSelectControlBar.svelte';
-  import SkipLink from '$lib/elements/SkipLink.svelte';
   import { assetMultiSelectManager } from '$lib/managers/asset-multi-select-manager.svelte';
   import { authManager } from '$lib/managers/auth-manager.svelte';
   import type { Viewport } from '$lib/managers/timeline-manager/types';
-  import FolderCreateModal from '$lib/modals/FolderCreateModal.svelte';
-  import FolderGrid from '$lib/components/folders/FolderGrid.svelte';
   import { Route } from '$lib/route';
   import { getAssetBulkActions } from '$lib/services/asset.service';
+  import { handleDeleteFolder, handleUpdateFolder } from '$lib/services/folder.service';
   import { foldersStore } from '$lib/stores/folders.svelte';
   import { toTimelineAsset } from '$lib/utils/timeline-util';
-  import { joinPaths } from '$lib/utils/tree-utils';
-  import { ActionButton, CommandPaletteDefaultProvider, IconButton, Text, modalManager } from '@immich/ui';
-  import { mdiDotsVertical, mdiFolder, mdiFolderHome, mdiFolderOutline, mdiFolderPlusOutline, mdiSelectAll } from '@mdi/js';
+  import { ActionButton, CommandPaletteDefaultProvider, IconButton, Text } from '@immich/ui';
+  import {
+    mdiDotsVertical,
+    mdiFolder,
+    mdiFolderEditOutline,
+    mdiFolderRemoveOutline,
+    mdiFolderPlusOutline,
+    mdiSelectAll,
+  } from '@mdi/js';
+  import { modalManager } from '@immich/ui';
   import { t } from 'svelte-i18n';
   import type { PageData } from './$types';
+  import FolderCreateModal from '$lib/modals/FolderCreateModal.svelte';
 
   interface Props {
     data: PageData;
@@ -43,23 +47,12 @@
 
   const viewport: Viewport = $state({ width: 0, height: 0 });
 
-  const handleNavigateToFolder = (folderName: string) => navigateToView(joinPaths(data.tree.path, folderName));
-
-  const getLinkForPath = (path: string) => Route.folders({ path });
-
   afterNavigate(() => {
     assetMultiSelectManager.clear();
   });
 
-  const navigateToView = (path: string) => {
-    return goto(getLinkForPath(path), { keepFocus: true, noScroll: true });
-  };
-
   const triggerAssetUpdate = async () => {
     assetMultiSelectManager.clear();
-    if (data.tree.path) {
-      await foldersStore.refreshAssetsByPath(data.tree.path);
-    }
     await invalidateAll();
   };
 
@@ -68,69 +61,82 @@
   };
 
   const handleSelectAllAssets = () => {
-    if (!data.pathAssets) {
+    if (!data.folderAssets || data.folderAssets.length === 0) {
       return;
     }
 
-    assetMultiSelectManager.selectAssets(data.pathAssets.map((asset) => toTimelineAsset(asset)));
+    assetMultiSelectManager.selectAssets(data.folderAssets.map((asset) => toTimelineAsset(asset)));
   };
 
-  const onCreateFolder = () => {
-    modalManager.show(FolderCreateModal, {});
+  const onDeleteFolder = async () => {
+    if (!data.folder) return;
+    const deleted = await handleDeleteFolder(data.folder);
+    if (deleted) {
+      if (data.folder.parentId) {
+        await goto(Route.viewFolder({ id: data.folder.parentId }));
+      } else {
+        await goto(Route.folders());
+      }
+    }
+  };
+
+  const onCreateSubfolder = () => {
+    modalManager.show(FolderCreateModal, { parentId: data.folder.id });
   };
 </script>
 
-<UserPageLayout title={data.meta.title}>
-  {#snippet buttons()}
-    <IconButton
-      shape="round"
-      color="primary"
-      variant="ghost"
-      aria-label={$t('create_folder')}
-      icon={mdiFolderPlusOutline}
-      onclick={onCreateFolder}
-    />
-  {/snippet}
-  {#snippet sidebar()}
-    <Sidebar>
-      <SkipLink target={`#${headerId}`} text={$t('skip_to_folders')} breakpoint="md" />
-      <section>
-        <Text class="mb-4 ps-4" size="small">{$t('explorer')}</Text>
-        <div class="h-full">
-          <TreeItems
-            icons={{ default: mdiFolderOutline, active: mdiFolder }}
-            tree={foldersStore.folders!}
-            active={data.tree.path}
-            getLink={getLinkForPath}
-          />
-        </div>
-      </section>
-    </Sidebar>
-  {/snippet}
-
-  <Breadcrumbs node={data.tree} icon={mdiFolderHome} title={$t('folders')} getLink={getLinkForPath} />
+<UserPageLayout title={data.folder.name}>
+  <FolderBreadcrumbs breadcrumbs={data.breadcrumbs} currentName={data.folder.name} />
 
   <section class="mt-2 h-[calc(100%-(--spacing(25)))] overflow-auto immich-scrollbar">
-    {#if data.rootFolders && data.rootFolders.length > 0}
-      <div class="mb-4">
-        <Text size="small" class="mb-2 px-2 text-dark/70 dark:text-gray-400">Managed Folders</Text>
-        <FolderGrid folders={data.rootFolders} />
+    <div class="flex items-center justify-between px-2 mb-2">
+      <Text size="small" class="text-dark/70 dark:text-gray-400">
+        {data.folder.assetCount} assets &middot; {data.childFolders.length} subfolders
+      </Text>
+      <div class="flex gap-1">
+        {#if data.folderPermissions?.operations.canEdit}
+          <IconButton
+            shape="round"
+            color="secondary"
+            variant="ghost"
+            aria-label="Create subfolder"
+            icon={mdiFolderPlusOutline}
+            onclick={onCreateSubfolder}
+          />
+        {/if}
+        {#if data.folderPermissions?.operations.canDelete}
+          <IconButton
+            shape="round"
+            color="secondary"
+            variant="ghost"
+            aria-label="Delete folder"
+            icon={mdiFolderRemoveOutline}
+            onclick={onDeleteFolder}
+          />
+        {/if}
       </div>
+    </div>
+
+    {#if data.childFolders.length > 0}
+      <FolderGrid folders={data.childFolders} />
     {/if}
 
-    <TreeItemThumbnails items={data.tree.children} icon={mdiFolder} onClick={handleNavigateToFolder} />
-
-    <!-- Assets -->
-    {#if data.pathAssets && data.pathAssets.length > 0}
+    {#if data.folderAssets && data.folderAssets.length > 0}
       <div bind:clientHeight={viewport.height} bind:clientWidth={viewport.width} class="mt-2">
         <GalleryViewer
-          assets={data.pathAssets}
+          assets={data.folderAssets}
           assetInteraction={assetMultiSelectManager}
           {viewport}
           showAssetName={true}
           pageHeaderOffset={54}
           onReload={triggerAssetUpdate}
         />
+      </div>
+    {/if}
+
+    {#if data.childFolders.length === 0 && (!data.folderAssets || data.folderAssets.length === 0)}
+      <div class="flex flex-col items-center justify-center h-64 text-gray-400">
+        <Text>This folder is empty</Text>
       </div>
     {/if}
   </section>
@@ -154,9 +160,9 @@
       <FavoriteAction
         removeFavorite={assetMultiSelectManager.isAllFavorite}
         onFavorite={function handleFavoriteUpdate(ids, isFavorite) {
-          if (data.pathAssets && data.pathAssets.length > 0) {
+          if (data.folderAssets && data.folderAssets.length > 0) {
             for (const id of ids) {
-              const asset = data.pathAssets.find((asset) => asset.id === id);
+              const asset = data.folderAssets.find((asset) => asset.id === id);
               if (asset) {
                 asset.isFavorite = isFavorite;
               }

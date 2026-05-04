@@ -185,6 +185,8 @@ export type AuthSharedLink = {
   allowUpload: boolean;
   allowDownload: boolean;
   password: string | null;
+  viewCount: number;
+  visitLimit: number | null;
 };
 
 export type SharedLink = {
@@ -203,6 +205,8 @@ export type SharedLink = {
   type: SharedLinkType;
   userId: string;
   slug: string | null;
+  viewCount: number;
+  visitLimit: number | null;
 };
 
 export type Album = Selectable<AlbumTable> & {

@@ -510,7 +510,16 @@ export class AuthService extends BaseService {
   private isValidSharedLink(
     sharedLink?: AuthSharedLink & { user: AuthUser | null },
   ): sharedLink is AuthSharedLink & { user: AuthUser } {
-    return !!sharedLink?.user && (!sharedLink.expiresAt || new Date(sharedLink.expiresAt) > new Date());
+    if (!sharedLink?.user) {
+      return false;
+    }
+    if (sharedLink.expiresAt && new Date(sharedLink.expiresAt) <= new Date()) {
+      return false;
+    }
+    if (sharedLink.visitLimit !== null && sharedLink.viewCount >= sharedLink.visitLimit) {
+      return false;
+    }
+    return true;
   }
 
   private async validateApiKey(key: string): Promise<AuthDto> {

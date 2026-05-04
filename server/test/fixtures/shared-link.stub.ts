@@ -32,6 +32,8 @@ export const sharedLinkStub = {
     assets: [AssetFactory.create()],
     password: 'password',
     slug: null,
+    viewCount: 0,
+    visitLimit: null,
   }),
   valid: Object.freeze({
     id: '123',
@@ -50,6 +52,8 @@ export const sharedLinkStub = {
     assets: [] as MapAsset[],
     album: null,
     slug: null,
+    viewCount: 0,
+    visitLimit: null,
   }),
   expired: Object.freeze({
     id: '123',
@@ -68,6 +72,8 @@ export const sharedLinkStub = {
     assets: [] as MapAsset[],
     album: null,
     slug: null,
+    viewCount: 0,
+    visitLimit: null,
   }),
   passwordRequired: Object.freeze({
     id: '123',
@@ -85,5 +91,7 @@ export const sharedLinkStub = {
     assets: [],
     albumId: null,
     album: null,
+    viewCount: 0,
+    visitLimit: null,
   }),
 };

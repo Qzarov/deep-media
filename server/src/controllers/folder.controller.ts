@@ -1,12 +1,15 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Endpoint, HistoryBuilder } from 'src/decorators';
+import { AssetResponseDto } from 'src/dtos/asset-response.dto';
 import { BulkIdResponseDto, BulkIdsDto } from 'src/dtos/asset-ids.response.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
 import {
   AddFolderUsersDto,
+  FolderAccessMatrixDto,
   FolderBulkAssetsDto,
   FolderCreateDto,
+  FolderEffectivePermissionsDto,
   FolderMoveDto,
   FolderResponseDto,
   FolderUpdateDto,
@@ -119,6 +122,17 @@ export class FolderController {
     return this.service.remove(auth, id);
   }
 
+  @Get(':id/assets')
+  @Authenticated({ permission: Permission.FolderRead })
+  @Endpoint({
+    summary: 'Get folder assets',
+    description: 'Retrieve all assets in a folder.',
+    history: new HistoryBuilder().added('v2'),
+  })
+  getAssets(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<AssetResponseDto[]> {
+    return this.service.getAssets(auth, id);
+  }
+
   @Put(':id/assets')
   @Authenticated({ permission: Permission.FolderUpdate })
   @Endpoint({
@@ -147,6 +161,34 @@ export class FolderController {
     @Body() dto: BulkIdsDto,
   ): Promise<BulkIdResponseDto[]> {
     return this.service.removeAssets(auth, id, dto);
+  }
+
+  @Get(':id/permissions')
+  @Authenticated({ permission: Permission.FolderRead })
+  @Endpoint({
+    summary: 'Get effective permissions',
+    description: 'Get the effective ACL permissions for the current user on this folder, resolving inheritance.',
+    history: new HistoryBuilder().added('v2'),
+  })
+  getEffectivePermissions(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+  ): Promise<FolderEffectivePermissionsDto> {
+    return this.service.getEffectivePermissions(auth, id);
+  }
+
+  @Get(':id/access-matrix')
+  @Authenticated({ permission: Permission.FolderShare })
+  @Endpoint({
+    summary: 'Get access matrix',
+    description: 'Get all users with access to this folder and their effective permissions. Requires administrator access.',
+    history: new HistoryBuilder().added('v2'),
+  })
+  getAccessMatrix(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+  ): Promise<FolderAccessMatrixDto> {
+    return this.service.getAccessMatrix(auth, id);
   }
 
   @Put(':id/users')

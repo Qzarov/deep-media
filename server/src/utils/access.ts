@@ -1,7 +1,7 @@
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { AuthSharedLink } from 'src/database';
 import { AuthDto } from 'src/dtos/auth.dto';
-import { AlbumUserRole, Permission } from 'src/enum';
+import { AlbumUserRole, FolderUserRole, Permission } from 'src/enum';
 import { AccessRepository } from 'src/repositories/access.repository';
 import { setDifference, setIsEqual, setIsSuperset, setUnion } from 'src/utils/set';
 
@@ -260,7 +260,27 @@ const checkOtherAccess = async (access: AccessRepository, request: OtherAccessRe
       const isShared = await access.folder.checkSharedFolderAccess(
         auth.user.id,
         setDifference(ids, isOwner),
-        AlbumUserRole.Viewer,
+        FolderUserRole.Viewer,
+      );
+      return setUnion(isOwner, isShared);
+    }
+
+    case Permission.FolderDownload: {
+      const isOwner = await access.folder.checkOwnerAccess(auth.user.id, ids);
+      const isShared = await access.folder.checkSharedFolderAccess(
+        auth.user.id,
+        setDifference(ids, isOwner),
+        FolderUserRole.ViewerDownload,
+      );
+      return setUnion(isOwner, isShared);
+    }
+
+    case Permission.FolderUpload: {
+      const isOwner = await access.folder.checkOwnerAccess(auth.user.id, ids);
+      const isShared = await access.folder.checkSharedFolderAccess(
+        auth.user.id,
+        setDifference(ids, isOwner),
+        FolderUserRole.Contributor,
       );
       return setUnion(isOwner, isShared);
     }
@@ -270,7 +290,7 @@ const checkOtherAccess = async (access: AccessRepository, request: OtherAccessRe
       const isShared = await access.folder.checkSharedFolderAccess(
         auth.user.id,
         setDifference(ids, isOwner),
-        AlbumUserRole.Editor,
+        FolderUserRole.Editor,
       );
       return setUnion(isOwner, isShared);
     }
@@ -283,7 +303,7 @@ const checkOtherAccess = async (access: AccessRepository, request: OtherAccessRe
       const isShared = await access.folder.checkSharedFolderAccess(
         auth.user.id,
         setDifference(ids, isOwner),
-        AlbumUserRole.Editor,
+        FolderUserRole.Administrator,
       );
       return setUnion(isOwner, isShared);
     }

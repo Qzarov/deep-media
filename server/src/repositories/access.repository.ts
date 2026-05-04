@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Kysely, NotNull, sql } from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import { ChunkedSet, DummyValue, GenerateSql } from 'src/decorators';
-import { AlbumUserRole, AssetVisibility } from 'src/enum';
+import { AlbumUserRole, AssetVisibility, FolderEffect, FolderUserRole, getFolderRolesAtOrAbove } from 'src/enum';
 import { DB } from 'src/schema';
 import { asUuid } from 'src/utils/database';
 
@@ -496,15 +496,12 @@ class FolderAccess {
 
   @GenerateSql({ params: [DummyValue.UUID, DummyValue.UUID_SET, 'editor'] })
   @ChunkedSet({ paramIndex: 1 })
-  async checkSharedFolderAccess(userId: string, folderIds: Set<string>, access: AlbumUserRole) {
+  async checkSharedFolderAccess(userId: string, folderIds: Set<string>, minRole: FolderUserRole) {
     if (folderIds.size === 0) {
       return new Set<string>();
     }
 
-    const accessRoles =
-      access === AlbumUserRole.Editor
-        ? [AlbumUserRole.Editor, AlbumUserRole.Owner]
-        : [AlbumUserRole.Editor, AlbumUserRole.Viewer, AlbumUserRole.Owner];
+    const accessRoles = getFolderRolesAtOrAbove(minRole);
 
     return this.db
       .selectFrom('folder')
@@ -513,11 +510,35 @@ class FolderAccess {
       .where('folder.deletedAt', 'is', null)
       .where(({ exists, selectFrom }) =>
         exists(
-          selectFrom('folder_closure')
-            .innerJoin('folder_user', 'folder_user.folderId', 'folder_closure.id_ancestor')
-            .whereRef('folder_closure.id_descendant', '=', 'folder.id')
-            .where('folder_user.userId', '=', userId)
-            .where('folder_user.role', 'in', accessRoles),
+          selectFrom(
+            selectFrom('folder_closure')
+              .innerJoin('folder_user', 'folder_user.folderId', 'folder_closure.id_ancestor')
+              .select([
+                'folder_closure.id_descendant',
+                'folder_user.role',
+                'folder_user.effect',
+              ])
+              .whereRef('folder_closure.id_descendant', '=', 'folder.id')
+              .where('folder_user.userId', '=', userId)
+              .where((eb) =>
+                eb.or([
+                  eb('folder_user.validFrom', 'is', null),
+                  eb('folder_user.validFrom', '<=', sql<Date>`now()`),
+                ]),
+              )
+              .where((eb) =>
+                eb.or([
+                  eb('folder_user.validUntil', 'is', null),
+                  eb('folder_user.validUntil', '>', sql<Date>`now()`),
+                ]),
+              )
+              .orderBy('folder_closure.depth', 'asc')
+              .limit(1)
+              .as('effective'),
+          )
+            .select('effective.id_descendant')
+            .where('effective.effect', '=', FolderEffect.Allow)
+            .where('effective.role', 'in', accessRoles),
         ),
       )
       .execute()

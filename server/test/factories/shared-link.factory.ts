@@ -40,6 +40,8 @@ export class SharedLinkFactory {
       showExif: true,
       password: null,
       slug: null,
+      viewCount: 0,
+      visitLimit: null,
       ...dto,
     });
   }

@@ -30,6 +30,7 @@ const SharedLinkCreateSchema = z
     allowUpload: z.boolean().optional().describe('Allow uploads'),
     allowDownload: z.boolean().default(true).optional().describe('Allow downloads'),
     showMetadata: z.boolean().default(true).optional().describe('Show metadata'),
+    visitLimit: z.number().int().positive().nullable().optional().describe('Maximum number of visits (null for unlimited)'),
   })
   .meta({ id: 'SharedLinkCreateDto' });
 
@@ -42,6 +43,7 @@ const SharedLinkEditSchema = z
     allowUpload: z.boolean().optional().describe('Allow uploads'),
     allowDownload: z.boolean().optional().describe('Allow downloads'),
     showMetadata: z.boolean().optional().describe('Show metadata'),
+    visitLimit: z.number().int().positive().nullable().optional().describe('Maximum number of visits (null for unlimited)'),
     changeExpiryTime: z
       .boolean()
       .optional()
@@ -73,6 +75,8 @@ const SharedLinkResponseSchema = z
     allowDownload: z.boolean().describe('Allow downloads'),
     showMetadata: z.boolean().describe('Show metadata'),
     slug: z.string().nullable().describe('Custom URL slug'),
+    viewCount: z.number().describe('Number of times this link has been viewed'),
+    visitLimit: z.number().nullable().describe('Maximum number of visits (null for unlimited)'),
   })
   .describe('Shared link response')
   .meta({ id: 'SharedLinkResponseDto' });
@@ -101,6 +105,8 @@ export function mapSharedLink(sharedLink: SharedLink, options: { stripAssetMetad
     allowDownload: sharedLink.allowDownload,
     showMetadata: sharedLink.showExif,
     slug: sharedLink.slug,
+    viewCount: sharedLink.viewCount,
+    visitLimit: sharedLink.visitLimit,
   };
 
   // unless we select sharedLink.album.sharedLinks this will be wrong

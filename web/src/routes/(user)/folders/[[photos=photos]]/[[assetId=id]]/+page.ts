@@ -13,17 +13,24 @@ export const load = (async ({ url }) => {
   if (path) {
     tree = tree.traverse(path);
   } else if (path === null) {
-    // If no path is provided, we've just navigated to the folders page.
-    // We should bust the asset cache of the folder store, to make sure we don't show stale data
     foldersStore.bustAssetCache();
   }
 
-  // only fetch assets if the folder has assets
   const pathAssets = tree.hasAssets ? await foldersStore.fetchAssetsByPath(tree.path) : null;
+
+  let rootFolders = foldersStore.rootFolders;
+  if (!path && rootFolders.length === 0) {
+    try {
+      rootFolders = await foldersStore.fetchRootFolders();
+    } catch {
+      rootFolders = [];
+    }
+  }
 
   return {
     tree,
     pathAssets,
+    rootFolders,
     meta: {
       title: $t('folders'),
     },

@@ -13,6 +13,7 @@ import type {
   UserAdminResponseDto,
   WorkflowResponseDto,
 } from '@immich/sdk';
+import type { FolderResponseDto } from '$lib/api/folder-api';
 import type { ReleaseEvent } from '$lib/types';
 import { BaseEventManager } from '$lib/utils/base-event-manager.svelte';
 import type { TreeNode } from '$lib/utils/tree-utils';
@@ -44,6 +45,12 @@ export type Events = {
   AlbumShare: [];
   AlbumUserUpdate: [{ albumId: string; userId: string; role: AlbumUserRole }];
   AlbumUserDelete: [{ albumId: string; userId: string }];
+
+  FolderCreate: [FolderResponseDto];
+  FolderUpdate: [FolderResponseDto];
+  FolderDelete: [{ id: string }];
+  FolderShare: [FolderResponseDto];
+  FolderAddAssets: [{ folderId: string; assetIds: string[] }];
 
   PersonUpdate: [PersonResponseDto];
   PersonThumbnailReady: [{ id: string }];

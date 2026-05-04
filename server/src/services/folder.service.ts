@@ -1,11 +1,16 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { AssetResponseDto, mapAsset } from 'src/dtos/asset-response.dto';
 import { BulkIdErrorReason, BulkIdResponseDto, BulkIdsDto } from 'src/dtos/asset-ids.response.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
 import {
   AddFolderUsersDto,
+  EffectivePermission,
+  FolderAccessMatrixDto,
   FolderBulkAssetsDto,
   FolderCreateDto,
+  FolderEffectivePermissionsDto,
   FolderMoveDto,
+  FolderRestrictions,
   FolderResponseDto,
   FolderUpdateDto,
   FolderUserInfo,
@@ -13,7 +18,7 @@ import {
   UpdateFolderUserDto,
   mapFolder,
 } from 'src/dtos/folder.dto';
-import { AlbumUserRole, Permission } from 'src/enum';
+import { FolderEffect, FolderUserRole, FolderUserRoleWeight, Permission } from 'src/enum';
 import { BaseService } from 'src/services/base.service';
 
 @Injectable()
@@ -41,6 +46,16 @@ export class FolderService extends BaseService {
     return this.folderRepository.getBreadcrumbs(id);
   }
 
+  async getAssets(auth: AuthDto, id: string): Promise<AssetResponseDto[]> {
+    await this.requireAccess({ auth, permission: Permission.FolderRead, ids: [id] });
+    const assetIds = await this.folderRepository.getAssetIds(id);
+    if (assetIds.length === 0) {
+      return [];
+    }
+    const assets = await this.assetRepository.getByIds(assetIds);
+    return assets.map((asset) => mapAsset(asset, { auth }));
+  }
+
   async create(auth: AuthDto, dto: FolderCreateDto): Promise<FolderResponseDto> {
     if (dto.parentId) {
       await this.requireAccess({ auth, permission: Permission.FolderUpdate, ids: [dto.parentId] });
@@ -61,7 +76,7 @@ export class FolderService extends BaseService {
     await this.folderUserRepository.create({
       folderId: created.id,
       userId: auth.user.id,
-      role: AlbumUserRole.Owner,
+      role: FolderUserRole.Owner,
     });
 
     const folder = await this.findOrFail(created.id);
@@ -134,11 +149,26 @@ export class FolderService extends BaseService {
   async addUsers(auth: AuthDto, id: string, dto: AddFolderUsersDto): Promise<FolderResponseDto> {
     await this.requireAccess({ auth, permission: Permission.FolderShare, ids: [id] });
 
+    const callerPermission = await this.folderUserRepository.getEffectivePermission(id, auth.user.id);
+    const callerRole = callerPermission?.role as FolderUserRole | undefined;
+    const callerIsOwner = callerRole === FolderUserRole.Owner;
+
     const existingUsers = await this.folderUserRepository.getByFolderId(id);
 
-    for (const { userId, role } of dto.folderUsers) {
-      if (role === AlbumUserRole.Owner) {
+    for (const userDto of dto.folderUsers) {
+      const { userId, role, effect, restrictions, validFrom, validUntil } = userDto;
+      const assignedRole = role ?? FolderUserRole.Editor;
+
+      if (assignedRole === FolderUserRole.Owner) {
         throw new BadRequestException('Cannot add another owner');
+      }
+
+      if (assignedRole === FolderUserRole.Administrator && !callerIsOwner) {
+        throw new BadRequestException('Only the owner can assign the Administrator role');
+      }
+
+      if (effect === FolderEffect.Deny && !callerIsOwner && callerRole !== FolderUserRole.Administrator) {
+        throw new BadRequestException('Only Owner or Administrator can set deny entries');
       }
 
       const exists = existingUsers.find((u) => u.userId === userId);
@@ -154,7 +184,11 @@ export class FolderService extends BaseService {
       await this.folderUserRepository.create({
         folderId: id,
         userId,
-        role: role ?? AlbumUserRole.Editor,
+        role: assignedRole,
+        effect: effect ?? FolderEffect.Allow,
+        restrictions: JSON.stringify(restrictions ?? {}),
+        validFrom: validFrom ?? null,
+        validUntil: validUntil ?? null,
       });
     }
 
@@ -171,15 +205,44 @@ export class FolderService extends BaseService {
       throw new BadRequestException('User not found in folder');
     }
 
-    if (existing.role === AlbumUserRole.Owner && dto.role !== AlbumUserRole.Owner) {
+    const callerPermission = await this.folderUserRepository.getEffectivePermission(id, auth.user.id);
+    const callerRole = callerPermission?.role as FolderUserRole | undefined;
+    const callerIsOwner = callerRole === FolderUserRole.Owner;
+
+    if (existing.role === FolderUserRole.Owner && dto.role !== FolderUserRole.Owner) {
       const allUsers = await this.folderUserRepository.getByFolderId(id);
-      const owners = allUsers.filter((u) => u.role === AlbumUserRole.Owner);
+      const owners = allUsers.filter((u) => u.role === FolderUserRole.Owner);
       if (owners.length <= 1) {
         throw new BadRequestException('Cannot change the role of the last owner');
       }
     }
 
-    await this.folderUserRepository.update({ folderId: id, userId }, { role: dto.role });
+    if (dto.role === FolderUserRole.Administrator && !callerIsOwner) {
+      throw new BadRequestException('Only the owner can assign the Administrator role');
+    }
+
+    if (dto.effect === FolderEffect.Deny && !callerIsOwner && callerRole !== FolderUserRole.Administrator) {
+      throw new BadRequestException('Only Owner or Administrator can set deny entries');
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (dto.role !== undefined) {
+      updateData.role = dto.role;
+    }
+    if (dto.effect !== undefined) {
+      updateData.effect = dto.effect;
+    }
+    if (dto.restrictions !== undefined) {
+      updateData.restrictions = JSON.stringify(dto.restrictions);
+    }
+    if (dto.validFrom !== undefined) {
+      updateData.validFrom = dto.validFrom;
+    }
+    if (dto.validUntil !== undefined) {
+      updateData.validUntil = dto.validUntil;
+    }
+
+    await this.folderUserRepository.update({ folderId: id, userId }, updateData);
   }
 
   async removeUser(auth: AuthDto, id: string, userId: string): Promise<void> {
@@ -194,9 +257,9 @@ export class FolderService extends BaseService {
       throw new BadRequestException('User not found in folder');
     }
 
-    if (existing.role === AlbumUserRole.Owner) {
+    if (existing.role === FolderUserRole.Owner) {
       const allUsers = await this.folderUserRepository.getByFolderId(id);
-      const owners = allUsers.filter((u) => u.role === AlbumUserRole.Owner);
+      const owners = allUsers.filter((u) => u.role === FolderUserRole.Owner);
       if (owners.length <= 1) {
         throw new BadRequestException('Cannot remove the last folder owner');
       }
@@ -235,6 +298,78 @@ export class FolderService extends BaseService {
     return dto.ids.map((assetId) => ({ id: assetId, success: true }));
   }
 
+  async getEffectivePermissions(auth: AuthDto, id: string): Promise<FolderEffectivePermissionsDto> {
+    await this.requireAccess({ auth, permission: Permission.FolderRead, ids: [id] });
+
+    const folder = await this.findOrFail(id);
+    const effective = await this.folderUserRepository.getEffectivePermission(id, auth.user.id);
+
+    if (!effective) {
+      const isOwner = folder.ownerId === auth.user.id;
+      if (isOwner) {
+        return this.buildOwnerPermissions(id);
+      }
+      return this.buildNoAccessPermissions(id);
+    }
+
+    const restrictions = this.parseRestrictions(effective.restrictions);
+    const role = effective.role as FolderUserRole;
+    const effect = effective.effect as FolderEffect;
+    const isInherited = effective.depth > 0;
+
+    return {
+      folderId: id,
+      role: effect === FolderEffect.Deny ? null : role,
+      effect,
+      isInherited,
+      inheritedFrom: isInherited
+        ? { folderId: effective.folderId, name: effective.folderName }
+        : null,
+      restrictions,
+      operations: effect === FolderEffect.Deny
+        ? { canView: false, canDownload: false, canUpload: false, canEdit: false, canAdmin: false, canDelete: false }
+        : this.resolveOperations(role, restrictions),
+    };
+  }
+
+  async getAccessMatrix(auth: AuthDto, id: string): Promise<FolderAccessMatrixDto> {
+    await this.requireAccess({ auth, permission: Permission.FolderShare, ids: [id] });
+
+    const allEntries = await this.folderUserRepository.getAllEffectivePermissions(id);
+
+    const byUser = new Map<string, typeof allEntries[0]>();
+    for (const entry of allEntries) {
+      if (!byUser.has(entry.userId)) {
+        byUser.set(entry.userId, entry);
+      }
+    }
+
+    const entries = [...byUser.values()].map((entry) => {
+      const role = entry.role as FolderUserRole;
+      const effect = entry.effect as FolderEffect;
+      const restrictions = this.parseRestrictions(entry.restrictions);
+      const isInherited = entry.depth > 0;
+
+      return {
+        userId: entry.userId,
+        name: entry.name,
+        email: entry.email,
+        profileImagePath: entry.profileImagePath,
+        effectiveRole: effect === FolderEffect.Deny ? null : role,
+        effect,
+        isInherited,
+        inheritedFrom: isInherited
+          ? { folderId: entry.sourceFolderId, name: entry.sourceFolderName }
+          : null,
+        restrictions,
+        validFrom: entry.validFrom ? String(entry.validFrom) : null,
+        validUntil: entry.validUntil ? String(entry.validUntil) : null,
+      };
+    });
+
+    return { folderId: id, entries };
+  }
+
   private async findOrFail(id: string): Promise<FolderWithCounts> {
     const folder = await this.folderRepository.getWithCounts(id);
     if (!folder) {
@@ -250,7 +385,58 @@ export class FolderService extends BaseService {
       name: u.name,
       email: u.email,
       profileImagePath: u.profileImagePath,
-      role: u.role as AlbumUserRole,
+      role: u.role as FolderUserRole,
+      effect: (u.effect ?? FolderEffect.Allow) as FolderEffect,
+      restrictions: this.parseRestrictions(u.restrictions),
+      validFrom: u.validFrom ? String(u.validFrom) : null,
+      validUntil: u.validUntil ? String(u.validUntil) : null,
     }));
+  }
+
+  private parseRestrictions(raw: unknown): FolderRestrictions {
+    if (!raw || typeof raw === 'string') {
+      try {
+        return raw ? JSON.parse(raw as string) : {};
+      } catch {
+        return {};
+      }
+    }
+    return raw as FolderRestrictions;
+  }
+
+  private resolveOperations(role: FolderUserRole, restrictions: FolderRestrictions) {
+    const weight = FolderUserRoleWeight[role];
+    return {
+      canView: weight >= FolderUserRoleWeight[FolderUserRole.Viewer],
+      canDownload: weight >= FolderUserRoleWeight[FolderUserRole.ViewerDownload] && !restrictions.noDownload,
+      canUpload: weight >= FolderUserRoleWeight[FolderUserRole.Contributor],
+      canEdit: weight >= FolderUserRoleWeight[FolderUserRole.Editor],
+      canAdmin: weight >= FolderUserRoleWeight[FolderUserRole.Administrator],
+      canDelete: weight >= FolderUserRoleWeight[FolderUserRole.Owner],
+    };
+  }
+
+  private buildOwnerPermissions(folderId: string): FolderEffectivePermissionsDto {
+    return {
+      folderId,
+      role: FolderUserRole.Owner,
+      effect: FolderEffect.Allow,
+      isInherited: false,
+      inheritedFrom: null,
+      restrictions: {},
+      operations: { canView: true, canDownload: true, canUpload: true, canEdit: true, canAdmin: true, canDelete: true },
+    };
+  }
+
+  private buildNoAccessPermissions(folderId: string): FolderEffectivePermissionsDto {
+    return {
+      folderId,
+      role: null,
+      effect: FolderEffect.Deny,
+      isInherited: false,
+      inheritedFrom: null,
+      restrictions: {},
+      operations: { canView: false, canDownload: false, canUpload: false, canEdit: false, canAdmin: false, canDelete: false },
+    };
   }
 }

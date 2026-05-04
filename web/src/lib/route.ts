@@ -72,6 +72,9 @@ export const Route = {
 
   // folders
   folders: (params?: { path?: string }) => '/folders' + asQueryString(params),
+  viewFolder: ({ id }: { id: string }) => `/folders/${id}`,
+  viewFolderAsset: ({ folderId, assetId }: { folderId: string; assetId: string }) =>
+    `/folders/${folderId}/photos/${assetId}`,
 
   // libraries
   libraries: () => '/admin/library-management',

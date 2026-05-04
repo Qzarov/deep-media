@@ -1,5 +1,5 @@
 import { createZodDto } from 'nestjs-zod';
-import { AlbumUserRole, AlbumUserRoleSchema } from 'src/enum';
+import { FolderEffect, FolderEffectSchema, FolderUserRole, FolderUserRoleSchema } from 'src/enum';
 import { asDateString } from 'src/utils/date';
 import z from 'zod';
 
@@ -30,10 +30,21 @@ const FolderBulkAssetsSchema = z
   })
   .meta({ id: 'FolderBulkAssetsDto' });
 
+const FolderRestrictionsSchema = z
+  .object({
+    noDownload: z.boolean().optional().describe('Block downloading assets'),
+    noRawDownload: z.boolean().optional().describe('Block downloading RAW files'),
+  })
+  .meta({ id: 'FolderRestrictionsDto' });
+
 const FolderUserAddSchema = z
   .object({
     userId: z.uuidv4().describe('User ID to share with'),
-    role: AlbumUserRoleSchema.default(AlbumUserRole.Editor).optional().describe('Role for the user'),
+    role: FolderUserRoleSchema.default(FolderUserRole.Editor).optional().describe('Role for the user'),
+    effect: FolderEffectSchema.default(FolderEffect.Allow).optional().describe('Allow or deny access'),
+    restrictions: FolderRestrictionsSchema.optional().describe('Access restrictions'),
+    validFrom: z.string().datetime().nullish().describe('Access valid from'),
+    validUntil: z.string().datetime().nullish().describe('Access valid until'),
   })
   .meta({ id: 'FolderUserAddDto' });
 
@@ -45,7 +56,11 @@ const AddFolderUsersSchema = z
 
 const UpdateFolderUserSchema = z
   .object({
-    role: AlbumUserRoleSchema.describe('New role for the user'),
+    role: FolderUserRoleSchema.optional().describe('New role for the user'),
+    effect: FolderEffectSchema.optional().describe('Allow or deny access'),
+    restrictions: FolderRestrictionsSchema.optional().describe('Access restrictions'),
+    validFrom: z.string().datetime().nullish().describe('Access valid from'),
+    validUntil: z.string().datetime().nullish().describe('Access valid until'),
   })
   .meta({ id: 'UpdateFolderUserDto' });
 
@@ -55,7 +70,11 @@ const FolderUserResponseSchema = z
     name: z.string().describe('User display name'),
     email: z.string().describe('User email'),
     profileImagePath: z.string().describe('User profile image path'),
-    role: AlbumUserRoleSchema.describe('User role in folder'),
+    role: FolderUserRoleSchema.describe('User role in folder'),
+    effect: FolderEffectSchema.describe('Allow or deny'),
+    restrictions: FolderRestrictionsSchema.describe('Access restrictions'),
+    validFrom: z.string().nullable().describe('Access valid from'),
+    validUntil: z.string().nullable().describe('Access valid until'),
   })
   .meta({ id: 'FolderUserResponseDto' });
 
@@ -75,6 +94,62 @@ export const FolderResponseSchema = z
   })
   .meta({ id: 'FolderResponseDto' });
 
+const FolderEffectivePermissionsSchema = z
+  .object({
+    folderId: z.string().describe('Folder ID'),
+    role: FolderUserRoleSchema.nullable().describe('Effective role'),
+    effect: FolderEffectSchema.describe('Allow or deny'),
+    isInherited: z.boolean().describe('Whether permission is inherited from parent'),
+    inheritedFrom: z
+      .object({
+        folderId: z.string(),
+        name: z.string(),
+      })
+      .nullable()
+      .describe('Source folder if inherited'),
+    restrictions: FolderRestrictionsSchema.describe('Effective restrictions'),
+    operations: z
+      .object({
+        canView: z.boolean(),
+        canDownload: z.boolean(),
+        canUpload: z.boolean(),
+        canEdit: z.boolean(),
+        canAdmin: z.boolean(),
+        canDelete: z.boolean(),
+      })
+      .describe('Resolved operation flags'),
+  })
+  .meta({ id: 'FolderEffectivePermissionsDto' });
+
+const FolderAccessMatrixEntrySchema = z
+  .object({
+    userId: z.string().describe('User ID'),
+    name: z.string().describe('User display name'),
+    email: z.string().describe('User email'),
+    profileImagePath: z.string().describe('User profile image path'),
+    effectiveRole: FolderUserRoleSchema.nullable().describe('Effective role'),
+    effect: FolderEffectSchema.describe('Allow or deny'),
+    isInherited: z.boolean().describe('Whether inherited from parent'),
+    inheritedFrom: z
+      .object({
+        folderId: z.string(),
+        name: z.string(),
+      })
+      .nullable()
+      .describe('Source folder if inherited'),
+    restrictions: FolderRestrictionsSchema.describe('Effective restrictions'),
+    validFrom: z.string().nullable().describe('Access valid from'),
+    validUntil: z.string().nullable().describe('Access valid until'),
+  })
+  .meta({ id: 'FolderAccessMatrixEntryDto' });
+
+const FolderAccessMatrixSchema = z
+  .object({
+    folderId: z.string().describe('Folder ID'),
+    entries: z.array(FolderAccessMatrixEntrySchema).describe('All users with access'),
+  })
+  .meta({ id: 'FolderAccessMatrixDto' });
+
 export class FolderCreateDto extends createZodDto(FolderCreateSchema) {}
 export class FolderUpdateDto extends createZodDto(FolderUpdateSchema) {}
 export class FolderMoveDto extends createZodDto(FolderMoveSchema) {}
@@ -83,13 +158,24 @@ export class AddFolderUsersDto extends createZodDto(AddFolderUsersSchema) {}
 export class UpdateFolderUserDto extends createZodDto(UpdateFolderUserSchema) {}
 export class FolderUserResponseDto extends createZodDto(FolderUserResponseSchema) {}
 export class FolderResponseDto extends createZodDto(FolderResponseSchema) {}
+export class FolderEffectivePermissionsDto extends createZodDto(FolderEffectivePermissionsSchema) {}
+export class FolderAccessMatrixDto extends createZodDto(FolderAccessMatrixSchema) {}
+
+export interface FolderRestrictions {
+  noDownload?: boolean;
+  noRawDownload?: boolean;
+}
 
 export interface FolderUserInfo {
   userId: string;
   name: string;
   email: string;
   profileImagePath: string;
-  role: AlbumUserRole;
+  role: FolderUserRole;
+  effect: FolderEffect;
+  restrictions: FolderRestrictions;
+  validFrom: string | null;
+  validUntil: string | null;
 }
 
 export interface FolderWithCounts {
@@ -102,6 +188,17 @@ export interface FolderWithCounts {
   updatedAt: Date | string;
   hasChildren: boolean;
   assetCount: number;
+}
+
+export interface EffectivePermission {
+  folderId: string;
+  folderName: string;
+  role: FolderUserRole;
+  effect: FolderEffect;
+  restrictions: FolderRestrictions;
+  depth: number;
+  validFrom: string | null;
+  validUntil: string | null;
 }
 
 export function mapFolder(entity: FolderWithCounts, folderUsers: FolderUserInfo[] = []): FolderResponseDto {
@@ -122,6 +219,10 @@ export function mapFolder(entity: FolderWithCounts, folderUsers: FolderUserInfo[
       email: u.email,
       profileImagePath: u.profileImagePath,
       role: u.role,
+      effect: u.effect,
+      restrictions: u.restrictions,
+      validFrom: u.validFrom,
+      validUntil: u.validUntil,
     })),
   };
 }

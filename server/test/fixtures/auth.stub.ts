@@ -52,6 +52,8 @@ export const authStub = {
       expiresAt: null,
       password: null,
       userId: '42',
+      viewCount: 0,
+      visitLimit: null,
     },
   }),
 };

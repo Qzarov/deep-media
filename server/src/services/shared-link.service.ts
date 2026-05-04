@@ -57,6 +57,8 @@ export class SharedLinkService extends BaseService {
       throw new UnauthorizedException('Password required');
     }
 
+    await this.sharedLinkRepository.incrementViewCount(id);
+
     return mapSharedLink(sharedLink, { stripAssetMetadata: !sharedLink.showExif });
   }
 
@@ -100,6 +102,7 @@ export class SharedLinkService extends BaseService {
         allowDownload: dto.showMetadata === false ? false : (dto.allowDownload ?? true),
         showExif: dto.showMetadata ?? true,
         slug: dto.slug || null,
+        visitLimit: dto.visitLimit ?? null,
       });
 
       return mapSharedLink(sharedLink, { stripAssetMetadata: false });
@@ -129,6 +132,7 @@ export class SharedLinkService extends BaseService {
         allowDownload: dto.allowDownload,
         showExif: dto.showMetadata,
         slug: dto.slug || null,
+        visitLimit: dto.visitLimit,
       });
       return mapSharedLink(sharedLink, { stripAssetMetadata: false });
     } catch (error) {
