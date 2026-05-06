@@ -1,25 +1,37 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { AssetResponseDto, mapAsset } from 'src/dtos/asset-response.dto';
 import { BulkIdErrorReason, BulkIdResponseDto, BulkIdsDto } from 'src/dtos/asset-ids.response.dto';
+import { AssetResponseDto, mapAsset } from 'src/dtos/asset-response.dto';
+import { AuditLogDto, AuditLogMetadata, AuditLogSearchDto, mapAuditLog } from 'src/dtos/audit-log.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
 import {
   AddFolderUsersDto,
-  EffectivePermission,
   FolderAccessMatrixDto,
   FolderBulkAssetsDto,
   FolderCreateDto,
   FolderEffectivePermissionsDto,
   FolderMoveDto,
-  FolderRestrictions,
   FolderResponseDto,
+  FolderRestrictions,
   FolderUpdateDto,
   FolderUserInfo,
   FolderWithCounts,
   UpdateFolderUserDto,
   mapFolder,
 } from 'src/dtos/folder.dto';
-import { FolderEffect, FolderUserRole, FolderUserRoleWeight, Permission } from 'src/enum';
+import {
+  AuditLogAction,
+  AuditLogResourceType,
+  FolderEffect,
+  FolderUserRole,
+  FolderUserRoleWeight,
+  Permission,
+} from 'src/enum';
 import { BaseService } from 'src/services/base.service';
+
+export interface AuditLogContext {
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}
 
 @Injectable()
 export class FolderService extends BaseService {
@@ -56,7 +68,7 @@ export class FolderService extends BaseService {
     return assets.map((asset) => mapAsset(asset, { auth }));
   }
 
-  async create(auth: AuthDto, dto: FolderCreateDto): Promise<FolderResponseDto> {
+  async create(auth: AuthDto, dto: FolderCreateDto, context?: AuditLogContext): Promise<FolderResponseDto> {
     if (dto.parentId) {
       await this.requireAccess({ auth, permission: Permission.FolderUpdate, ids: [dto.parentId] });
     }
@@ -79,12 +91,25 @@ export class FolderService extends BaseService {
       role: FolderUserRole.Owner,
     });
 
+    await this.auditFolder(
+      auth,
+      AuditLogAction.FolderCreate,
+      created.id,
+      {
+        name: dto.name,
+        parentId: dto.parentId ?? null,
+        description: dto.description ?? '',
+      },
+      null,
+      context,
+    );
+
     const folder = await this.findOrFail(created.id);
     const users = await this.getFolderUsers(created.id);
     return mapFolder(folder, users);
   }
 
-  async update(auth: AuthDto, id: string, dto: FolderUpdateDto): Promise<FolderResponseDto> {
+  async update(auth: AuthDto, id: string, dto: FolderUpdateDto, context?: AuditLogContext): Promise<FolderResponseDto> {
     await this.requireAccess({ auth, permission: Permission.FolderUpdate, ids: [id] });
 
     const existing = await this.folderRepository.get(id);
@@ -104,12 +129,30 @@ export class FolderService extends BaseService {
       ...(dto.description !== undefined && { description: dto.description }),
     });
 
+    await this.auditFolder(
+      auth,
+      AuditLogAction.FolderUpdate,
+      id,
+      {
+        before: {
+          name: existing.name,
+          description: existing.description,
+        },
+        after: {
+          ...(dto.name !== undefined && { name: dto.name }),
+          ...(dto.description !== undefined && { description: dto.description }),
+        },
+      },
+      null,
+      context,
+    );
+
     const folder = await this.findOrFail(id);
     const users = await this.getFolderUsers(id);
     return mapFolder(folder, users);
   }
 
-  async move(auth: AuthDto, id: string, dto: FolderMoveDto): Promise<FolderResponseDto> {
+  async move(auth: AuthDto, id: string, dto: FolderMoveDto, context?: AuditLogContext): Promise<FolderResponseDto> {
     await this.requireAccess({ auth, permission: Permission.FolderUpdate, ids: [id] });
 
     if (dto.parentId) {
@@ -137,16 +180,47 @@ export class FolderService extends BaseService {
 
     await this.folderRepository.move(id, dto.parentId);
 
+    await this.auditFolder(
+      auth,
+      AuditLogAction.FolderMove,
+      id,
+      {
+        fromParentId: existing.parentId,
+        toParentId: dto.parentId,
+      },
+      null,
+      context,
+    );
+
     const folder = await this.findOrFail(id);
     return mapFolder(folder);
   }
 
-  async remove(auth: AuthDto, id: string): Promise<void> {
+  async remove(auth: AuthDto, id: string, context?: AuditLogContext): Promise<void> {
     await this.requireAccess({ auth, permission: Permission.FolderDelete, ids: [id] });
+    const existing = await this.findOrFail(id);
     await this.folderRepository.softDelete(id);
+    await this.auditFolder(
+      auth,
+      AuditLogAction.FolderDelete,
+      id,
+      {
+        name: existing.name,
+        parentId: existing.parentId,
+        assetCount: existing.assetCount,
+        hasChildren: existing.hasChildren,
+      },
+      null,
+      context,
+    );
   }
 
-  async addUsers(auth: AuthDto, id: string, dto: AddFolderUsersDto): Promise<FolderResponseDto> {
+  async addUsers(
+    auth: AuthDto,
+    id: string,
+    dto: AddFolderUsersDto,
+    context?: AuditLogContext,
+  ): Promise<FolderResponseDto> {
     await this.requireAccess({ auth, permission: Permission.FolderShare, ids: [id] });
 
     const callerPermission = await this.folderUserRepository.getEffectivePermission(id, auth.user.id);
@@ -190,6 +264,21 @@ export class FolderService extends BaseService {
         validFrom: validFrom ?? null,
         validUntil: validUntil ?? null,
       });
+
+      await this.auditFolder(
+        auth,
+        AuditLogAction.FolderShare,
+        id,
+        {
+          role: assignedRole,
+          effect: effect ?? FolderEffect.Allow,
+          restrictions: restrictions ?? {},
+          validFrom: validFrom ?? null,
+          validUntil: validUntil ?? null,
+        },
+        userId,
+        context,
+      );
     }
 
     const folder = await this.findOrFail(id);
@@ -197,7 +286,13 @@ export class FolderService extends BaseService {
     return mapFolder(folder, users);
   }
 
-  async updateUser(auth: AuthDto, id: string, userId: string, dto: UpdateFolderUserDto): Promise<void> {
+  async updateUser(
+    auth: AuthDto,
+    id: string,
+    userId: string,
+    dto: UpdateFolderUserDto,
+    context?: AuditLogContext,
+  ): Promise<void> {
     await this.requireAccess({ auth, permission: Permission.FolderShare, ids: [id] });
 
     const existing = await this.folderUserRepository.getByFolderAndUser(id, userId);
@@ -243,9 +338,33 @@ export class FolderService extends BaseService {
     }
 
     await this.folderUserRepository.update({ folderId: id, userId }, updateData);
+
+    await this.auditFolder(
+      auth,
+      AuditLogAction.FolderUserUpdate,
+      id,
+      {
+        before: {
+          role: existing.role,
+          effect: existing.effect,
+          restrictions: this.parseRestrictions(existing.restrictions),
+          validFrom: existing.validFrom ?? null,
+          validUntil: existing.validUntil ?? null,
+        },
+        after: {
+          ...(dto.role !== undefined && { role: dto.role }),
+          ...(dto.effect !== undefined && { effect: dto.effect }),
+          ...(dto.restrictions !== undefined && { restrictions: dto.restrictions }),
+          ...(dto.validFrom !== undefined && { validFrom: dto.validFrom }),
+          ...(dto.validUntil !== undefined && { validUntil: dto.validUntil }),
+        },
+      },
+      userId,
+      context,
+    );
   }
 
-  async removeUser(auth: AuthDto, id: string, userId: string): Promise<void> {
+  async removeUser(auth: AuthDto, id: string, userId: string, context?: AuditLogContext): Promise<void> {
     const isSelf = auth.user.id === userId;
 
     if (!isSelf) {
@@ -266,9 +385,29 @@ export class FolderService extends BaseService {
     }
 
     await this.folderUserRepository.delete({ folderId: id, userId });
+    await this.auditFolder(
+      auth,
+      AuditLogAction.FolderUserRemove,
+      id,
+      {
+        role: existing.role,
+        effect: existing.effect,
+        restrictions: this.parseRestrictions(existing.restrictions),
+        validFrom: existing.validFrom ?? null,
+        validUntil: existing.validUntil ?? null,
+        self: isSelf,
+      },
+      userId,
+      context,
+    );
   }
 
-  async addAssets(auth: AuthDto, id: string, dto: FolderBulkAssetsDto): Promise<BulkIdResponseDto[]> {
+  async addAssets(
+    auth: AuthDto,
+    id: string,
+    dto: FolderBulkAssetsDto,
+    context?: AuditLogContext,
+  ): Promise<BulkIdResponseDto[]> {
     await this.requireAccess({ auth, permission: Permission.FolderUpdate, ids: [id] });
 
     const results: BulkIdResponseDto[] = [];
@@ -285,15 +424,42 @@ export class FolderService extends BaseService {
     const toAdd = results.filter((r) => r.success).map((r) => r.id);
     if (toAdd.length > 0) {
       await this.folderRepository.addAssetIds(id, toAdd);
+      await this.auditFolder(
+        auth,
+        AuditLogAction.FolderAssetsAdd,
+        id,
+        {
+          assetIds: toAdd,
+          count: toAdd.length,
+        },
+        null,
+        context,
+      );
     }
 
     return results;
   }
 
-  async removeAssets(auth: AuthDto, id: string, dto: BulkIdsDto): Promise<BulkIdResponseDto[]> {
+  async removeAssets(
+    auth: AuthDto,
+    id: string,
+    dto: BulkIdsDto,
+    context?: AuditLogContext,
+  ): Promise<BulkIdResponseDto[]> {
     await this.requireAccess({ auth, permission: Permission.FolderUpdate, ids: [id] });
 
     await this.folderRepository.removeAssetIds(id, dto.ids);
+    await this.auditFolder(
+      auth,
+      AuditLogAction.FolderAssetsRemove,
+      id,
+      {
+        assetIds: dto.ids,
+        count: dto.ids.length,
+      },
+      null,
+      context,
+    );
 
     return dto.ids.map((assetId) => ({ id: assetId, success: true }));
   }
@@ -322,13 +488,12 @@ export class FolderService extends BaseService {
       role: effect === FolderEffect.Deny ? null : role,
       effect,
       isInherited,
-      inheritedFrom: isInherited
-        ? { folderId: effective.folderId, name: effective.folderName }
-        : null,
+      inheritedFrom: isInherited ? { folderId: effective.folderId, name: effective.folderName } : null,
       restrictions,
-      operations: effect === FolderEffect.Deny
-        ? { canView: false, canDownload: false, canUpload: false, canEdit: false, canAdmin: false, canDelete: false }
-        : this.resolveOperations(role, restrictions),
+      operations:
+        effect === FolderEffect.Deny
+          ? { canView: false, canDownload: false, canUpload: false, canEdit: false, canAdmin: false, canDelete: false }
+          : this.resolveOperations(role, restrictions),
     };
   }
 
@@ -337,7 +502,7 @@ export class FolderService extends BaseService {
 
     const allEntries = await this.folderUserRepository.getAllEffectivePermissions(id);
 
-    const byUser = new Map<string, typeof allEntries[0]>();
+    const byUser = new Map<string, (typeof allEntries)[0]>();
     for (const entry of allEntries) {
       if (!byUser.has(entry.userId)) {
         byUser.set(entry.userId, entry);
@@ -358,9 +523,7 @@ export class FolderService extends BaseService {
         effectiveRole: effect === FolderEffect.Deny ? null : role,
         effect,
         isInherited,
-        inheritedFrom: isInherited
-          ? { folderId: entry.sourceFolderId, name: entry.sourceFolderName }
-          : null,
+        inheritedFrom: isInherited ? { folderId: entry.sourceFolderId, name: entry.sourceFolderName } : null,
         restrictions,
         validFrom: entry.validFrom ? String(entry.validFrom) : null,
         validUntil: entry.validUntil ? String(entry.validUntil) : null,
@@ -368,6 +531,12 @@ export class FolderService extends BaseService {
     });
 
     return { folderId: id, entries };
+  }
+
+  async getAuditLog(auth: AuthDto, id: string, dto: AuditLogSearchDto): Promise<AuditLogDto[]> {
+    await this.requireAccess({ auth, permission: Permission.FolderShare, ids: [id] });
+    const auditLogs = await this.auditLogRepository.searchByFolder(id, dto);
+    return auditLogs.map((auditLog) => mapAuditLog(auditLog));
   }
 
   private async findOrFail(id: string): Promise<FolderWithCounts> {
@@ -436,7 +605,39 @@ export class FolderService extends BaseService {
       isInherited: false,
       inheritedFrom: null,
       restrictions: {},
-      operations: { canView: false, canDownload: false, canUpload: false, canEdit: false, canAdmin: false, canDelete: false },
+      operations: {
+        canView: false,
+        canDownload: false,
+        canUpload: false,
+        canEdit: false,
+        canAdmin: false,
+        canDelete: false,
+      },
     };
+  }
+
+  private async auditFolder(
+    auth: AuthDto,
+    action: AuditLogAction,
+    folderId: string,
+    metadata: AuditLogMetadata,
+    targetUserId: string | null = null,
+    context?: AuditLogContext,
+  ) {
+    await this.auditLogRepository.create({
+      actorId: auth.user.id,
+      action,
+      resourceType: AuditLogResourceType.Folder,
+      resourceId: folderId,
+      folderId,
+      targetUserId,
+      metadata: this.normalizeMetadata(metadata),
+      ipAddress: context?.ipAddress ?? null,
+      userAgent: context?.userAgent ?? null,
+    });
+  }
+
+  private normalizeMetadata(metadata: AuditLogMetadata): AuditLogMetadata {
+    return JSON.parse(JSON.stringify(metadata)) as AuditLogMetadata;
   }
 }

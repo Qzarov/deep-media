@@ -94,6 +94,29 @@ export enum FolderEffect {
 
 export const FolderEffectSchema = z.enum(FolderEffect).describe('Folder ACL effect').meta({ id: 'FolderEffect' });
 
+export enum AuditLogAction {
+  FolderCreate = 'folder.create',
+  FolderUpdate = 'folder.update',
+  FolderMove = 'folder.move',
+  FolderDelete = 'folder.delete',
+  FolderShare = 'folder.share',
+  FolderUserUpdate = 'folder.user.update',
+  FolderUserRemove = 'folder.user.remove',
+  FolderAssetsAdd = 'folder.assets.add',
+  FolderAssetsRemove = 'folder.assets.remove',
+}
+
+export const AuditLogActionSchema = z.enum(AuditLogAction).describe('Audit log action').meta({ id: 'AuditLogAction' });
+
+export enum AuditLogResourceType {
+  Folder = 'folder',
+}
+
+export const AuditLogResourceTypeSchema = z
+  .enum(AuditLogResourceType)
+  .describe('Audit log resource type')
+  .meta({ id: 'AuditLogResourceType' });
+
 export function getFolderRolesAtOrAbove(minRole: FolderUserRole): FolderUserRole[] {
   const minWeight = FolderUserRoleWeight[minRole];
   return Object.values(FolderUserRole).filter((r) => FolderUserRoleWeight[r] >= minWeight);

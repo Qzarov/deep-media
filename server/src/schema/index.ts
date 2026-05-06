@@ -45,6 +45,7 @@ import { AssetMetadataAuditTable } from 'src/schema/tables/asset-metadata-audit.
 import { AssetMetadataTable } from 'src/schema/tables/asset-metadata.table';
 import { AssetOcrTable } from 'src/schema/tables/asset-ocr.table';
 import { AssetTable } from 'src/schema/tables/asset.table';
+import { AuditLogTable } from 'src/schema/tables/audit-log.table';
 import { FaceSearchTable } from 'src/schema/tables/face-search.table';
 import { FolderAssetTable } from 'src/schema/tables/folder-asset.table';
 import { FolderClosureTable } from 'src/schema/tables/folder-closure.table';
@@ -100,6 +101,7 @@ export class ImmichDatabase {
     AlbumUserTable,
     AlbumTable,
     ApiKeyTable,
+    AuditLogTable,
     AssetAuditTable,
     AssetEditTable,
     AssetEditAuditTable,
@@ -200,6 +202,8 @@ export interface DB {
   album_user_audit: AlbumUserAuditTable;
 
   api_key: ApiKeyTable;
+
+  audit_log: AuditLogTable;
 
   asset: AssetTable;
   asset_audit: AssetAuditTable;

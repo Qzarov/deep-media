@@ -25,6 +25,7 @@ import { AppRepository } from 'src/repositories/app.repository';
 import { AssetEditRepository } from 'src/repositories/asset-edit.repository';
 import { AssetJobRepository } from 'src/repositories/asset-job.repository';
 import { AssetRepository } from 'src/repositories/asset.repository';
+import { AuditLogRepository } from 'src/repositories/audit-log.repository';
 import { ConfigRepository } from 'src/repositories/config.repository';
 import { CronRepository } from 'src/repositories/cron.repository';
 import { CryptoRepository } from 'src/repositories/crypto.repository';
@@ -33,8 +34,8 @@ import { DownloadRepository } from 'src/repositories/download.repository';
 import { DuplicateRepository } from 'src/repositories/duplicate.repository';
 import { EmailRepository } from 'src/repositories/email.repository';
 import { EventRepository } from 'src/repositories/event.repository';
-import { FolderRepository } from 'src/repositories/folder.repository';
 import { FolderUserRepository } from 'src/repositories/folder-user.repository';
+import { FolderRepository } from 'src/repositories/folder.repository';
 import { JobRepository } from 'src/repositories/job.repository';
 import { LibraryRepository } from 'src/repositories/library.repository';
 import { LoggingRepository } from 'src/repositories/logging.repository';
@@ -221,6 +222,7 @@ export type ServiceOverrides = {
   albumUser: AlbumUserRepository;
   apiKey: ApiKeyRepository;
   app: AppRepository;
+  auditLog: AuditLogRepository;
   asset: AssetRepository;
   assetEdit: AssetEditRepository;
   assetJob: AssetJobRepository;
@@ -306,6 +308,7 @@ export const getMocks = () => {
     album: automock(AlbumRepository, { strict: false }),
     albumUser: automock(AlbumUserRepository),
     asset: newAssetRepositoryMock(),
+    auditLog: automock(AuditLogRepository),
     assetEdit: automock(AssetEditRepository),
     assetJob: automock(AssetJobRepository),
     app: automock(AppRepository, { strict: false }),
@@ -316,7 +319,7 @@ export const getMocks = () => {
     email: automock(EmailRepository, { args: [loggerMock] }),
     // eslint-disable-next-line no-sparse-arrays
     event: automock(EventRepository, { args: [, , loggerMock], strict: false }),
-    folder: automock(FolderRepository, { args: [, loggerMock] }),
+    folder: automock(FolderRepository, { args: [undefined, loggerMock] }),
     folderUser: automock(FolderUserRepository),
     job: newJobRepositoryMock(),
     apiKey: automock(ApiKeyRepository),
@@ -376,6 +379,7 @@ export const newTestService = <T extends BaseService>(
     overrides.albumUser || (mocks.albumUser as As<AlbumUserRepository>),
     overrides.apiKey || (mocks.apiKey as As<ApiKeyRepository>),
     overrides.app || (mocks.app as As<AppRepository>),
+    overrides.auditLog || (mocks.auditLog as As<AuditLogRepository>),
     overrides.asset || (mocks.asset as As<AssetRepository>),
     overrides.assetEdit || (mocks.assetEdit as As<AssetEditRepository>),
     overrides.assetJob || (mocks.assetJob as As<AssetJobRepository>),

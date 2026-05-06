@@ -7,6 +7,7 @@ import { AppRepository } from 'src/repositories/app.repository';
 import { AssetEditRepository } from 'src/repositories/asset-edit.repository';
 import { AssetJobRepository } from 'src/repositories/asset-job.repository';
 import { AssetRepository } from 'src/repositories/asset.repository';
+import { AuditLogRepository } from 'src/repositories/audit-log.repository';
 import { ConfigRepository } from 'src/repositories/config.repository';
 import { CronRepository } from 'src/repositories/cron.repository';
 import { CryptoRepository } from 'src/repositories/crypto.repository';
@@ -15,8 +16,8 @@ import { DownloadRepository } from 'src/repositories/download.repository';
 import { DuplicateRepository } from 'src/repositories/duplicate.repository';
 import { EmailRepository } from 'src/repositories/email.repository';
 import { EventRepository } from 'src/repositories/event.repository';
-import { FolderRepository } from 'src/repositories/folder.repository';
 import { FolderUserRepository } from 'src/repositories/folder-user.repository';
+import { FolderRepository } from 'src/repositories/folder.repository';
 import { JobRepository } from 'src/repositories/job.repository';
 import { LibraryRepository } from 'src/repositories/library.repository';
 import { LoggingRepository } from 'src/repositories/logging.repository';
@@ -60,6 +61,7 @@ export const repositories = [
   AlbumUserRepository,
   ApiKeyRepository,
   AppRepository,
+  AuditLogRepository,
   AssetRepository,
   AssetEditRepository,
   AssetJobRepository,

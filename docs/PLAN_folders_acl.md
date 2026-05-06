@@ -8,7 +8,7 @@
 | 2 | ACL с наследованием (бэкенд) | Done |
 | 3 | Интеграция фронтенда с Folder API | Done |
 | 4 | Расширение shared links | Done |
-| 5 | Аудит-лог | Planned |
+| 5 | Аудит-лог | Done |
 | 6 | In-app уведомления | Planned |
 | 7 | Русская локализация | Planned |
 
@@ -238,11 +238,28 @@ SDK не содержит методов для нового Folder API (тре�
 
 ---
 
-## 5–7. Следующие этапы (Planned)
+## 5. Аудит-лог (Done)
 
-### 5. Аудит-лог
-- Таблица audit_log: userId, action, resourceType, resourceId, timestamp, metadata
-- Логирование всех действий с папками, ассетами, правами
+Добавлен backend MVP для истории действий по папкам.
+
+- Таблица `audit_log`: actor, action, resourceType/resourceId, folderId, targetUserId, timestamp, metadata, IP, User-Agent
+- Логирование успешных действий с папками: create, update, move, delete
+- Логирование изменений ACL: share, update user role/effect/restrictions, remove user
+- Логирование состава папки: add/remove assets
+- Endpoint `GET /folders/:id/audit-log` с фильтрами `action`, `actorId`, `targetUserId`, `from`, `to`, `limit`
+
+### Файлы
+
+- `server/src/schema/tables/audit-log.table.ts`
+- `server/src/schema/migrations/1778061000000-AddAuditLog.ts`
+- `server/src/dtos/audit-log.dto.ts`
+- `server/src/repositories/audit-log.repository.ts`
+- `server/src/services/folder.service.ts`
+- `server/src/controllers/folder.controller.ts`
+
+---
+
+## 6–7. Следующие этапы (Planned)
 
 ### 6. In-app уведомления
 - Уведомления о шаринге, изменении прав, комментариях

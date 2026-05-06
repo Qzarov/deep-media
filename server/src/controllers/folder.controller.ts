@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
 import { Endpoint, HistoryBuilder } from 'src/decorators';
-import { AssetResponseDto } from 'src/dtos/asset-response.dto';
 import { BulkIdResponseDto, BulkIdsDto } from 'src/dtos/asset-ids.response.dto';
+import { AssetResponseDto } from 'src/dtos/asset-response.dto';
+import { AuditLogDto, AuditLogSearchDto } from 'src/dtos/audit-log.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
 import {
   AddFolderUsersDto,
@@ -17,13 +19,23 @@ import {
 } from 'src/dtos/folder.dto';
 import { ApiTag, Permission } from 'src/enum';
 import { Auth, Authenticated } from 'src/middleware/auth.guard';
-import { FolderService } from 'src/services/folder.service';
+import { AuditLogContext, FolderService } from 'src/services/folder.service';
 import { UUIDParamDto } from 'src/validation';
 
 @ApiTags(ApiTag.Folders)
 @Controller('folders')
 export class FolderController {
   constructor(private service: FolderService) {}
+
+  private getAuditContext(req: Request): AuditLogContext {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const ipAddress = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor?.split(',')[0]?.trim();
+
+    return {
+      ipAddress: ipAddress || req.ip || null,
+      userAgent: req.headers['user-agent'] ?? null,
+    };
+  }
 
   @Post()
   @Authenticated({ permission: Permission.FolderCreate })
@@ -32,8 +44,8 @@ export class FolderController {
     description: 'Create a new folder with optional parent for nested hierarchy.',
     history: new HistoryBuilder().added('v2'),
   })
-  createFolder(@Auth() auth: AuthDto, @Body() dto: FolderCreateDto): Promise<FolderResponseDto> {
-    return this.service.create(auth, dto);
+  createFolder(@Auth() auth: AuthDto, @Body() dto: FolderCreateDto, @Req() req: Request): Promise<FolderResponseDto> {
+    return this.service.create(auth, dto, this.getAuditContext(req));
   }
 
   @Get()
@@ -91,8 +103,9 @@ export class FolderController {
     @Auth() auth: AuthDto,
     @Param() { id }: UUIDParamDto,
     @Body() dto: FolderUpdateDto,
+    @Req() req: Request,
   ): Promise<FolderResponseDto> {
-    return this.service.update(auth, id, dto);
+    return this.service.update(auth, id, dto, this.getAuditContext(req));
   }
 
   @Put(':id/move')
@@ -106,8 +119,9 @@ export class FolderController {
     @Auth() auth: AuthDto,
     @Param() { id }: UUIDParamDto,
     @Body() dto: FolderMoveDto,
+    @Req() req: Request,
   ): Promise<FolderResponseDto> {
-    return this.service.move(auth, id, dto);
+    return this.service.move(auth, id, dto, this.getAuditContext(req));
   }
 
   @Delete(':id')
@@ -118,8 +132,8 @@ export class FolderController {
     description: 'Soft-delete a folder and all its subfolders. Only owner can delete.',
     history: new HistoryBuilder().added('v2'),
   })
-  deleteFolder(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<void> {
-    return this.service.remove(auth, id);
+  deleteFolder(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto, @Req() req: Request): Promise<void> {
+    return this.service.remove(auth, id, this.getAuditContext(req));
   }
 
   @Get(':id/assets')
@@ -144,8 +158,9 @@ export class FolderController {
     @Auth() auth: AuthDto,
     @Param() { id }: UUIDParamDto,
     @Body() dto: FolderBulkAssetsDto,
+    @Req() req: Request,
   ): Promise<BulkIdResponseDto[]> {
-    return this.service.addAssets(auth, id, dto);
+    return this.service.addAssets(auth, id, dto, this.getAuditContext(req));
   }
 
   @Delete(':id/assets')
@@ -159,8 +174,9 @@ export class FolderController {
     @Auth() auth: AuthDto,
     @Param() { id }: UUIDParamDto,
     @Body() dto: BulkIdsDto,
+    @Req() req: Request,
   ): Promise<BulkIdResponseDto[]> {
-    return this.service.removeAssets(auth, id, dto);
+    return this.service.removeAssets(auth, id, dto, this.getAuditContext(req));
   }
 
   @Get(':id/permissions')
@@ -181,14 +197,27 @@ export class FolderController {
   @Authenticated({ permission: Permission.FolderShare })
   @Endpoint({
     summary: 'Get access matrix',
-    description: 'Get all users with access to this folder and their effective permissions. Requires administrator access.',
+    description:
+      'Get all users with access to this folder and their effective permissions. Requires administrator access.',
     history: new HistoryBuilder().added('v2'),
   })
-  getAccessMatrix(
+  getAccessMatrix(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto): Promise<FolderAccessMatrixDto> {
+    return this.service.getAccessMatrix(auth, id);
+  }
+
+  @Get(':id/audit-log')
+  @Authenticated({ permission: Permission.FolderShare })
+  @Endpoint({
+    summary: 'Get folder audit log',
+    description: 'Get audit events for a folder. Requires administrator access.',
+    history: new HistoryBuilder().added('v2'),
+  })
+  getAuditLog(
     @Auth() auth: AuthDto,
     @Param() { id }: UUIDParamDto,
-  ): Promise<FolderAccessMatrixDto> {
-    return this.service.getAccessMatrix(auth, id);
+    @Query() dto: AuditLogSearchDto,
+  ): Promise<AuditLogDto[]> {
+    return this.service.getAuditLog(auth, id, dto);
   }
 
   @Put(':id/users')
@@ -202,8 +231,9 @@ export class FolderController {
     @Auth() auth: AuthDto,
     @Param() { id }: UUIDParamDto,
     @Body() dto: AddFolderUsersDto,
+    @Req() req: Request,
   ): Promise<FolderResponseDto> {
-    return this.service.addUsers(auth, id, dto);
+    return this.service.addUsers(auth, id, dto, this.getAuditContext(req));
   }
 
   @Put(':id/user/:userId')
@@ -218,8 +248,9 @@ export class FolderController {
     @Param() { id }: UUIDParamDto,
     @Param('userId') userId: string,
     @Body() dto: UpdateFolderUserDto,
+    @Req() req: Request,
   ): Promise<void> {
-    return this.service.updateUser(auth, id, userId, dto);
+    return this.service.updateUser(auth, id, userId, dto, this.getAuditContext(req));
   }
 
   @Delete(':id/user/:userId')
@@ -234,7 +265,8 @@ export class FolderController {
     @Auth() auth: AuthDto,
     @Param() { id }: UUIDParamDto,
     @Param('userId') userId: string,
+    @Req() req: Request,
   ): Promise<void> {
-    return this.service.removeUser(auth, id, userId);
+    return this.service.removeUser(auth, id, userId, this.getAuditContext(req));
   }
 }
