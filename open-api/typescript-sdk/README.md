@@ -1,26 +1,14 @@
-# @immich/sdk
+# Deep Photos TypeScript SDK
 
-A TypeScript SDK for interfacing with the [Immich](https://immich.app/) API.
+The generated TypeScript SDK is still published and imported under the upstream `@immich/sdk` package name during the fork migration.
 
-## Install
-
-```bash
-npm i --save @immich/sdk
-```
-
-## Usage
-
-For a more detailed example, check out the [`@immich/cli`](https://github.com/immich-app/immich/tree/main/cli).
+Use this package for typed API access from web and tooling code. Regenerate it through the OpenAPI workflow when backend DTOs or endpoints change.
 
 ```typescript
-import { getAllAlbums, getMyUser, init } from "@immich/sdk";
+import { getAllAlbums, getMyUser, init } from '@immich/sdk';
 
-const API_KEY = "<API_KEY>"; // process.env.IMMICH_API_KEY
-
-init({ baseUrl: "https://demo.immich.app/api", apiKey: API_KEY });
+init({ baseUrl: '<DEEP_PHOTOS_API_URL>', apiKey: '<API_KEY>' });
 
 const user = await getMyUser();
 const albums = await getAllAlbums({});
-
-console.log({ user, albums });
 ```

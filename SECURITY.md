@@ -2,4 +2,4 @@
 
 ## Reporting a Vulnerability
 
-Please report security issues to `security@immich.app`
+Security reporting for Deep Photos is not public yet. Report vulnerabilities through the project owner or the internal issue tracker.

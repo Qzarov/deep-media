@@ -1,38 +1,24 @@
-A command-line interface for interfacing with the self-hosted photo manager [Immich](https://immich.app/).
+# Deep Photos CLI
 
-Please see the [Immich CLI documentation](https://docs.immich.app/features/command-line-interface).
+Command-line tools for the Deep Photos monorepo.
 
-# For developers
+The CLI still inherits upstream package and command names during the fork migration. Build the server and OpenAPI client before building the CLI:
 
-Before building the CLI, you must build the immich server and the open-api client. To build the server run the following in the server folder:
+```bash
+pnpm install
+pnpm run build
+```
 
-    $ pnpm install
-    $ pnpm run build
+From `open-api/`, regenerate the client when API contracts change:
 
-Then, to build the open-api client run the following in the open-api folder:
+```bash
+./bin/generate-open-api.sh
+```
 
-    $ ./bin/generate-open-api.sh
+From this directory:
 
-## Run from build
-
-Go to the cli folder and build it:
-
-    $ pnpm install
-    $ pnpm run build
-    $ node dist/index.js
-
-## Run and Debug from source (VSCode)
-
-With VScode you can run and debug the Immich CLI. Go to the launch.json file, find the Immich CLI config and change this with the command you need to debug
-
-`"args": ["upload", "--help"],`
-
-replace that for the command of your choice.
-
-## Install from build
-
-You can also build and install the CLI using
-
-    $ pnpm run build
-    $ pnpm install -g .
-****
+```bash
+pnpm install
+pnpm run build
+node dist/index.js
+```

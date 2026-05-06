@@ -8,7 +8,6 @@ packages:
   - server
   - plugins
   - web
-  - .github
 ignoredBuiltDependencies:
   - '@nestjs/core'
   - '@parcel/watcher'

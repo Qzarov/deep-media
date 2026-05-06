@@ -10,16 +10,16 @@ module.exports = {
     extend: {
       colors: {
         // Light Theme
-        'immich-primary': '#4250af',
-        'immich-bg': '#f9f8fb',
-        'immich-fg': 'black',
-        'immich-gray': '#F6F6F4',
+        'deep-primary': '#4250af',
+        'deep-bg': '#f9f8fb',
+        'deep-fg': 'black',
+        'deep-gray': '#F6F6F4',
 
         // Dark Theme
-        'immich-dark-primary': '#adcbfa',
-        'immich-dark-bg': '#000000',
-        'immich-dark-fg': '#e5e7eb',
-        'immich-dark-gray': '#111111',
+        'deep-dark-primary': '#adcbfa',
+        'deep-dark-bg': '#000000',
+        'deep-dark-fg': '#e5e7eb',
+        'deep-dark-gray': '#111111',
       },
     },
   },

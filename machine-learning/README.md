@@ -1,4 +1,4 @@
-# Immich Machine Learning
+# Deep Photos Machine Learning
 
 - CLIP embeddings
 - Facial recognition

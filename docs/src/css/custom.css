@@ -106,21 +106,7 @@ div[class^='announcementBar_'] {
   font-weight: 450;
 }
 
-/* workaround for version switcher PR 15894 */
-div[class*='navbar__items'] > li:has(a[class*='version-switcher-34ab39']) {
-  display: none;
-}
-
 code {
   font-weight: 500;
   font-family: 'GoogleSansCode';
-}
-
-.buy-button {
-  padding: 8px 14px;
-  border: 1px solid transparent;
-  font-family: 'GoogleSans', sans-serif;
-  font-weight: 500;
-  cursor: pointer;
-  box-shadow: 0 0 5px 2px rgba(181, 206, 254, 0.4);
 }

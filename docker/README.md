@@ -1,5 +1,5 @@
-> [!CAUTION]
-> Make sure to use the docker-compose.yml of the current release:
-> https://github.com/immich-app/immich/releases/latest/download/docker-compose.yml
-> 
-> The compose file on main may not be compatible with the latest release.
+# Deep Photos Docker
+
+Docker Compose files are inherited from the upstream monorepo while the fork is being migrated.
+
+Review compose changes against the current application state before using them for production deployments.

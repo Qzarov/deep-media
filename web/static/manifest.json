@@ -1,6 +1,6 @@
 {
   "background_color": "#ffffff",
-  "description": "Self-hosted photo and video backup solution directly from your mobile phone.",
+  "description": "Cloud photo and video storage with advanced indexing and granular access control.",
   "dir": "auto",
   "display": "standalone",
   "icons": [
@@ -24,8 +24,8 @@
     }
   ],
   "lang": "en",
-  "name": "Immich",
-  "short_name": "Immich",
+  "name": "Deep Photos",
+  "short_name": "Deep Photos",
   "shortcuts": [
     {
       "name": "Photos",
