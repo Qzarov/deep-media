@@ -3,6 +3,8 @@
   import { IconButton, Stack, Text } from '@immich/ui';
   import {
     mdiBackupRestore,
+    mdiFolderAccount,
+    mdiFolderCogOutline,
     mdiImageAlbum,
     mdiImagePlus,
     mdiInformationOutline,
@@ -10,6 +12,7 @@
     mdiSync,
   } from '@mdi/js';
   import { DateTime } from 'luxon';
+  import { t } from 'svelte-i18n';
 
   interface Props {
     notification: NotificationDto;
@@ -17,6 +20,57 @@
   }
 
   let { notification, onclick }: Props = $props();
+
+  const getNotificationData = () => {
+    if (!notification.data) {
+      return;
+    }
+
+    return typeof notification.data === 'string' ? JSON.parse(notification.data) : notification.data;
+  };
+
+  const notificationText = $derived.by(() => {
+    const data = getNotificationData();
+
+    switch (notification.type) {
+      case NotificationType.FolderInvite: {
+        return {
+          title: $t('notification_folder_invite_title'),
+          description: $t('notification_folder_invite_description', {
+            values: {
+              folderName: data?.folderName ?? notification.title,
+              senderName: data?.senderName ?? '',
+            },
+          }),
+        };
+      }
+
+      case NotificationType.FolderAccessUpdate: {
+        const removed = data?.kind === 'removed';
+        return {
+          title: $t(removed ? 'notification_folder_access_removed_title' : 'notification_folder_access_updated_title'),
+          description: $t(
+            removed
+              ? 'notification_folder_access_removed_description'
+              : 'notification_folder_access_updated_description',
+            {
+              values: {
+                folderName: data?.folderName ?? notification.title,
+                senderName: data?.senderName ?? '',
+              },
+            },
+          ),
+        };
+      }
+
+      default: {
+        return {
+          title: notification.title,
+          description: notification.description,
+        };
+      }
+    }
+  });
 
   const getAlertColor = (level: NotificationLevel) => {
     switch (level) {
@@ -78,6 +132,14 @@
         return mdiImagePlus;
       }
 
+      case NotificationType.FolderInvite: {
+        return mdiFolderAccount;
+      }
+
+      case NotificationType.FolderAccessUpdate: {
+        return mdiFolderCogOutline;
+      }
+
       default: {
         return mdiInformationOutline;
       }
@@ -110,7 +172,7 @@
       <IconButton
         icon={getIconType(notification.type)}
         color={getAlertColor(notification.level)}
-        aria-label={notification.title}
+        aria-label={notificationText.title}
         shape="round"
         class={getIconBgColor(notification.level)}
         size="small"
@@ -118,9 +180,11 @@
     </div>
 
     <Stack class="text-left" gap={1}>
-      <Text size="tiny" class="text-base text-black dark:text-white" fontWeight="semi-bold">{notification.title}</Text>
-      {#if notification.description}
-        <Text class="overflow-hidden text-gray-600 dark:text-gray-300">{notification.description}</Text>
+      <Text size="tiny" class="text-base text-black dark:text-white" fontWeight="semi-bold"
+        >{notificationText.title}</Text
+      >
+      {#if notificationText.description}
+        <Text class="overflow-hidden text-gray-600 dark:text-gray-300">{notificationText.description}</Text>
       {/if}
 
       <Text size="tiny" color="muted">{formatRelativeTime(notification.createdAt)}</Text>

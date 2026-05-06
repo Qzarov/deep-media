@@ -22,18 +22,10 @@
   import type { Viewport } from '$lib/managers/timeline-manager/types';
   import { Route } from '$lib/route';
   import { getAssetBulkActions } from '$lib/services/asset.service';
-  import { handleDeleteFolder, handleUpdateFolder } from '$lib/services/folder.service';
-  import { foldersStore } from '$lib/stores/folders.svelte';
+  import { handleDeleteFolder } from '$lib/services/folder.service';
   import { toTimelineAsset } from '$lib/utils/timeline-util';
   import { ActionButton, CommandPaletteDefaultProvider, IconButton, Text } from '@immich/ui';
-  import {
-    mdiDotsVertical,
-    mdiFolder,
-    mdiFolderEditOutline,
-    mdiFolderRemoveOutline,
-    mdiFolderPlusOutline,
-    mdiSelectAll,
-  } from '@mdi/js';
+  import { mdiDotsVertical, mdiFolderRemoveOutline, mdiFolderPlusOutline, mdiSelectAll } from '@mdi/js';
   import { modalManager } from '@immich/ui';
   import { t } from 'svelte-i18n';
   import type { PageData } from './$types';
@@ -69,19 +61,18 @@
   };
 
   const onDeleteFolder = async () => {
-    if (!data.folder) return;
+    if (!data.folder) {
+      return;
+    }
+
     const deleted = await handleDeleteFolder(data.folder);
     if (deleted) {
-      if (data.folder.parentId) {
-        await goto(Route.viewFolder({ id: data.folder.parentId }));
-      } else {
-        await goto(Route.folders());
-      }
+      await goto(data.folder.parentId ? Route.viewFolder({ id: data.folder.parentId }) : Route.folders());
     }
   };
 
   const onCreateSubfolder = () => {
-    modalManager.show(FolderCreateModal, { parentId: data.folder.id });
+    void modalManager.show(FolderCreateModal, { parentId: data.folder.id });
   };
 </script>
 
@@ -89,9 +80,14 @@
   <FolderBreadcrumbs breadcrumbs={data.breadcrumbs} currentName={data.folder.name} />
 
   <section class="mt-2 h-[calc(100%-(--spacing(25)))] overflow-auto immich-scrollbar">
-    <div class="flex items-center justify-between px-2 mb-2">
+    <div class="mb-2 flex items-center justify-between px-2">
       <Text size="small" class="text-dark/70 dark:text-gray-400">
-        {data.folder.assetCount} assets &middot; {data.childFolders.length} subfolders
+        {$t('folder_summary', {
+          values: {
+            assetCount: data.folder.assetCount,
+            folderCount: data.childFolders.length,
+          },
+        })}
       </Text>
       <div class="flex gap-1">
         {#if data.folderPermissions?.operations.canEdit}
@@ -99,7 +95,7 @@
             shape="round"
             color="secondary"
             variant="ghost"
-            aria-label="Create subfolder"
+            aria-label={$t('create_subfolder')}
             icon={mdiFolderPlusOutline}
             onclick={onCreateSubfolder}
           />
@@ -109,7 +105,7 @@
             shape="round"
             color="secondary"
             variant="ghost"
-            aria-label="Delete folder"
+            aria-label={$t('delete_folder')}
             icon={mdiFolderRemoveOutline}
             onclick={onDeleteFolder}
           />
@@ -135,8 +131,8 @@
     {/if}
 
     {#if data.childFolders.length === 0 && (!data.folderAssets || data.folderAssets.length === 0)}
-      <div class="flex flex-col items-center justify-center h-64 text-gray-400">
-        <Text>This folder is empty</Text>
+      <div class="flex h-64 flex-col items-center justify-center text-gray-400">
+        <Text>{$t('empty_folder')}</Text>
       </div>
     {/if}
   </section>

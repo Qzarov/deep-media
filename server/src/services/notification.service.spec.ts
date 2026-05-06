@@ -206,7 +206,7 @@ describe(NotificationService.name, () => {
           userId: 'user-id',
           type: NotificationType.FolderInvite,
           title: 'Folder Invitation',
-          data: { folderId: 'folder-id' },
+          data: { folderId: 'folder-id', folderName: 'Project', senderName: 'Admin' },
         }),
       );
       expect(mocks.websocket.clientSend).toHaveBeenCalledWith(
@@ -244,9 +244,11 @@ describe(NotificationService.name, () => {
           title: 'Folder Access Updated',
           data: {
             folderId: 'folder-id',
+            folderName: 'Project',
             kind: 'updated',
             role: FolderUserRole.Viewer,
             effect: FolderEffect.Allow,
+            senderName: 'Admin',
           },
         }),
       );

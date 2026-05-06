@@ -19032,6 +19032,8 @@
           "SystemMessage",
           "AlbumInvite",
           "AlbumUpdate",
+          "FolderInvite",
+          "FolderAccessUpdate",
           "Custom"
         ],
         "type": "string"

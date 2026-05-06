@@ -239,7 +239,7 @@ export class NotificationService extends BaseService {
       level: NotificationLevel.Success,
       title: 'Folder Invitation',
       description: `${senderName} shared a folder (${folderName}) with you`,
-      data: { folderId },
+      data: { folderId, folderName, senderName },
     });
   }
 
@@ -268,6 +268,8 @@ export class NotificationService extends BaseService {
         kind,
         ...(role !== undefined && { role }),
         ...(effect !== undefined && { effect }),
+        folderName,
+        senderName,
       },
     });
   }

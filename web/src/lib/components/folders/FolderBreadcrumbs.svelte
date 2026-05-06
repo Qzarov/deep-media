@@ -13,7 +13,7 @@
   const { breadcrumbs, currentName }: Props = $props();
 
   const ancestors = $derived(breadcrumbs.slice(0, -1));
-  const parentCrumb = $derived(ancestors.length > 0 ? ancestors[ancestors.length - 1] : null);
+  const parentCrumb = $derived(ancestors.at(-1) ?? null);
   const parentLink = $derived(parentCrumb ? Route.viewFolder({ id: parentCrumb.id }) : Route.folders());
 </script>
 

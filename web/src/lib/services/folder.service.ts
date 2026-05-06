@@ -1,3 +1,7 @@
+import { modalManager, toastManager, type ActionItem } from '@immich/ui';
+import { mdiFolderPlusOutline } from '@mdi/js';
+import type { MessageFormatter } from 'svelte-i18n';
+import { goto } from '$app/navigation';
 import {
   createFolder,
   updateFolder,
@@ -14,18 +18,15 @@ import {
   type AddFolderUserRequest,
   type UpdateFolderUserRequest,
 } from '$lib/api/folder-api';
-import { modalManager, toastManager, type ActionItem } from '@immich/ui';
-import { mdiFolderPlusOutline } from '@mdi/js';
-import { goto } from '$app/navigation';
 import { eventManager } from '$lib/managers/event-manager.svelte';
 import FolderCreateModal from '$lib/modals/FolderCreateModal.svelte';
 import { Route } from '$lib/route';
 import { handleError } from '$lib/utils/handle-error';
 import { getFormatter } from '$lib/utils/i18n';
 
-export const getFolderActions = () => {
+export const getFolderActions = ($t: MessageFormatter) => {
   const Create: ActionItem = {
-    title: 'Create folder',
+    title: $t('create_folder'),
     icon: mdiFolderPlusOutline,
     onAction: () => modalManager.show(FolderCreateModal, {}),
   };

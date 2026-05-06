@@ -31,7 +31,14 @@
   import { toTimelineAsset } from '$lib/utils/timeline-util';
   import { joinPaths } from '$lib/utils/tree-utils';
   import { ActionButton, CommandPaletteDefaultProvider, IconButton, Text, modalManager } from '@immich/ui';
-  import { mdiDotsVertical, mdiFolder, mdiFolderHome, mdiFolderOutline, mdiFolderPlusOutline, mdiSelectAll } from '@mdi/js';
+  import {
+    mdiDotsVertical,
+    mdiFolder,
+    mdiFolderHome,
+    mdiFolderOutline,
+    mdiFolderPlusOutline,
+    mdiSelectAll,
+  } from '@mdi/js';
   import { t } from 'svelte-i18n';
   import type { PageData } from './$types';
 
@@ -76,7 +83,7 @@
   };
 
   const onCreateFolder = () => {
-    modalManager.show(FolderCreateModal, {});
+    void modalManager.show(FolderCreateModal, {});
   };
 </script>
 
@@ -113,7 +120,7 @@
   <section class="mt-2 h-[calc(100%-(--spacing(25)))] overflow-auto immich-scrollbar">
     {#if data.rootFolders && data.rootFolders.length > 0}
       <div class="mb-4">
-        <Text size="small" class="mb-2 px-2 text-dark/70 dark:text-gray-400">Managed Folders</Text>
+        <Text size="small" class="mb-2 px-2 text-dark/70 dark:text-gray-400">{$t('managed_folders')}</Text>
         <FolderGrid folders={data.rootFolders} />
       </div>
     {/if}

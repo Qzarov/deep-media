@@ -10,7 +10,7 @@
 | 4 | Расширение shared links | Done |
 | 5 | Аудит-лог | Done |
 | 6 | In-app уведомления | Done |
-| 7 | Русская локализация | Planned |
+| 7 | Русская локализация | Done |
 
 ---
 
@@ -279,8 +279,23 @@ SDK не содержит методов для нового Folder API (тре�
 
 ---
 
-## 7. Следующие этапы (Planned)
+## 7. Русская локализация (Done)
 
-### 7. Русская локализация
-- i18n ключи для всех новых строк
-- Перевод UI элементов папок и ACL
+Добавлена русская локализация для новых folder/ACL flows.
+
+- Добавлены ключи в `i18n/en.json` и `i18n/ru.json`
+- Убраны hardcoded строки из folder UI
+- Локализованы toast/error тексты folder service
+- Локализованы folder invite/access notification тексты в панели уведомлений
+- Folder notification types добавлены в OpenAPI SDK enum для frontend routing/icons
+
+### Файлы
+
+- `i18n/en.json`
+- `i18n/ru.json`
+- `web/src/lib/services/folder.service.ts`
+- `web/src/lib/components/folders/FolderGrid.svelte`
+- `web/src/routes/(user)/folders`
+- `web/src/lib/components/shared-components/navigation-bar/NotificationItem.svelte`
+- `web/src/lib/components/shared-components/navigation-bar/NotificationPanel.svelte`
+- `open-api/typescript-sdk/src/fetch-client.ts`

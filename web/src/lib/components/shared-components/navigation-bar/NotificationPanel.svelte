@@ -31,20 +31,30 @@
   };
 
   const handleNotificationAction = async (notification: NotificationDto) => {
+    const getNotificationData = () => {
+      if (!notification.data) {
+        return;
+      }
+
+      return typeof notification.data === 'string' ? JSON.parse(notification.data) : notification.data;
+    };
+
     switch (notification.type) {
       case NotificationType.AlbumInvite:
       case NotificationType.AlbumUpdate: {
-        if (!notification.data) {
-          return;
-        }
-
-        if (typeof notification.data !== 'string') {
-          return;
-        }
-
-        const data = JSON.parse(notification.data);
+        const data = getNotificationData();
         if (data?.albumId) {
           await goto(`/albums/${data.albumId}`);
+        }
+
+        break;
+      }
+
+      case NotificationType.FolderInvite:
+      case NotificationType.FolderAccessUpdate: {
+        const data = getNotificationData();
+        if (data?.folderId) {
+          await goto(`/folders/${data.folderId}`);
         }
 
         break;

@@ -3,6 +3,7 @@
   import { Route } from '$lib/route';
   import { Icon, Text } from '@immich/ui';
   import { mdiFolder } from '@mdi/js';
+  import { t } from 'svelte-i18n';
 
   interface Props {
     folders: FolderResponseDto[];
@@ -26,7 +27,7 @@
           {folder.name}
         </p>
         <Text size="tiny" class="text-gray-400">
-          {folder.assetCount} assets
+          {$t('assets_count', { values: { count: folder.assetCount } })}
         </Text>
       </a>
     {/each}

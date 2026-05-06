@@ -105,12 +105,15 @@ export interface UpdateFolderUserRequest {
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const fetchFn = defaults.fetch ?? globalThis.fetch;
   const baseUrl = defaults.baseUrl ?? '/api';
-  const headers: Record<string, string> = {
-    ...((defaults.headers as Record<string, string>) ?? {}),
-    ...(init?.headers as Record<string, string> ?? {}),
-  };
-  if (init?.body && !headers['Content-Type']) {
-    headers['Content-Type'] = 'application/json';
+  const headers = new Headers(defaults.headers as HeadersInit);
+  if (init?.headers) {
+    for (const [key, value] of new Headers(init.headers)) {
+      headers.set(key, value);
+    }
+  }
+
+  if (init?.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
   }
 
   const response = await fetchFn(`${baseUrl}/folders${path}`, {
