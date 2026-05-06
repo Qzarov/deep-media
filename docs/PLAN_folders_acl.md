@@ -9,7 +9,7 @@
 | 3 | Интеграция фронтенда с Folder API | Done |
 | 4 | Расширение shared links | Done |
 | 5 | Аудит-лог | Done |
-| 6 | In-app уведомления | Planned |
+| 6 | In-app уведомления | Done |
 | 7 | Русская локализация | Planned |
 
 ---
@@ -259,11 +259,27 @@ SDK не содержит методов для нового Folder API (тре�
 
 ---
 
-## 6–7. Следующие этапы (Planned)
+## 6. In-app уведомления (Done)
 
-### 6. In-app уведомления
-- Уведомления о шаринге, изменении прав, комментариях
-- WebSocket или polling для realtime
+Добавлены backend in-app уведомления для folder/ACL flow поверх существующей таблицы `notification` и websocket события `on_notification`.
+
+- Уведомление пользователю при шаринге папки
+- Уведомление пользователю при изменении роли, allow/deny или ограничений
+- Уведомление пользователю при удалении доступа
+- REST polling уже доступен через `GET /notifications`
+- Realtime доставка использует существующий websocket `on_notification`
+
+### Файлы
+
+- `server/src/enum.ts` — типы `FolderInvite`, `FolderAccessUpdate`
+- `server/src/repositories/event.repository.ts` — события `FolderInvite`, `FolderAccessUpdate`
+- `server/src/services/folder.service.ts` — emit событий после успешных ACL-операций
+- `server/src/services/notification.service.ts` — создание и отправка folder уведомлений
+- `server/src/repositories/notification.repository.ts` — исправлено чтение активного уведомления по id
+
+---
+
+## 7. Следующие этапы (Planned)
 
 ### 7. Русская локализация
 - i18n ключи для всех новых строк

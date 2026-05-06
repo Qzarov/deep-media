@@ -14,6 +14,7 @@ import {
 import { SystemConfigSmtpDto } from 'src/dtos/system-config.dto';
 import {
   AssetFileType,
+  FolderEffect,
   JobName,
   JobStatus,
   NotificationLevel,
@@ -228,6 +229,47 @@ export class NotificationService extends BaseService {
   @OnEvent({ name: 'AlbumInvite' })
   async onAlbumInvite({ id, userId, senderName }: ArgOf<'AlbumInvite'>) {
     await this.jobRepository.queue({ name: JobName.NotifyAlbumInvite, data: { id, recipientId: userId, senderName } });
+  }
+
+  @OnEvent({ name: 'FolderInvite' })
+  async onFolderInvite({ folderId, folderName, userId, senderName }: ArgOf<'FolderInvite'>) {
+    await this.sendFolderLocalNotification({
+      userId,
+      type: NotificationType.FolderInvite,
+      level: NotificationLevel.Success,
+      title: 'Folder Invitation',
+      description: `${senderName} shared a folder (${folderName}) with you`,
+      data: { folderId },
+    });
+  }
+
+  @OnEvent({ name: 'FolderAccessUpdate' })
+  async onFolderAccessUpdate({
+    folderId,
+    folderName,
+    userId,
+    senderName,
+    kind,
+    role,
+    effect,
+  }: ArgOf<'FolderAccessUpdate'>) {
+    const removed = kind === 'removed';
+
+    await this.sendFolderLocalNotification({
+      userId,
+      type: NotificationType.FolderAccessUpdate,
+      level: removed || effect === FolderEffect.Deny ? NotificationLevel.Warning : NotificationLevel.Info,
+      title: removed ? 'Folder Access Removed' : 'Folder Access Updated',
+      description: removed
+        ? `${senderName} removed your access to folder (${folderName})`
+        : `${senderName} updated your access to folder (${folderName})`,
+      data: {
+        folderId,
+        kind,
+        ...(role !== undefined && { role }),
+        ...(effect !== undefined && { effect }),
+      },
+    });
   }
 
   @OnEvent({ name: 'SessionDelete' })
@@ -471,6 +513,33 @@ export class NotificationService extends BaseService {
         ? `${senderName} shared an album (${album.albumName}) with you`
         : `New media has been added to the album (${album.albumName})`,
       data: JSON.stringify({ albumId: album.id }),
+    });
+
+    this.websocketRepository.clientSend('on_notification', userId, mapNotification(item));
+  }
+
+  private async sendFolderLocalNotification({
+    userId,
+    type,
+    level,
+    title,
+    description,
+    data,
+  }: {
+    userId: string;
+    type: NotificationType.FolderInvite | NotificationType.FolderAccessUpdate;
+    level: NotificationLevel;
+    title: string;
+    description: string;
+    data: Record<string, unknown>;
+  }) {
+    const item = await this.notificationRepository.create({
+      userId,
+      type,
+      level,
+      title,
+      description,
+      data,
     });
 
     this.websocketRepository.clientSend('on_notification', userId, mapNotification(item));

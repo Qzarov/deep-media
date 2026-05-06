@@ -1,6 +1,14 @@
 import { defaults, SystemConfig } from 'src/config';
 import { SystemConfigDto } from 'src/dtos/system-config.dto';
-import { AssetFileType, JobName, JobStatus, UserMetadataKey } from 'src/enum';
+import {
+  AssetFileType,
+  FolderEffect,
+  FolderUserRole,
+  JobName,
+  JobStatus,
+  NotificationType,
+  UserMetadataKey,
+} from 'src/enum';
 import { NotificationService } from 'src/services/notification.service';
 import { INotifyAlbumUpdateJob } from 'src/types';
 import { AlbumFactory } from 'test/factories/album.factory';
@@ -173,6 +181,80 @@ describe(NotificationService.name, () => {
         name: JobName.NotifyAlbumInvite,
         data: { id: '', recipientId: '42', senderName: 'foo' },
       });
+    });
+  });
+
+  describe('onFolderInviteEvent', () => {
+    it('should create and send a folder invite notification', async () => {
+      mocks.notification.create.mockResolvedValue({
+        ...notificationStub.albumEvent,
+        id: 'notification-folder-invite',
+        type: NotificationType.FolderInvite,
+        title: 'Folder Invitation',
+        data: { folderId: 'folder-id' },
+      });
+
+      await sut.onFolderInvite({
+        folderId: 'folder-id',
+        folderName: 'Project',
+        userId: 'user-id',
+        senderName: 'Admin',
+      });
+
+      expect(mocks.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-id',
+          type: NotificationType.FolderInvite,
+          title: 'Folder Invitation',
+          data: { folderId: 'folder-id' },
+        }),
+      );
+      expect(mocks.websocket.clientSend).toHaveBeenCalledWith(
+        'on_notification',
+        'user-id',
+        expect.objectContaining({ id: 'notification-folder-invite', type: NotificationType.FolderInvite }),
+      );
+    });
+  });
+
+  describe('onFolderAccessUpdateEvent', () => {
+    it('should create and send a folder access update notification', async () => {
+      mocks.notification.create.mockResolvedValue({
+        ...notificationStub.albumEvent,
+        id: 'notification-folder-access',
+        type: NotificationType.FolderAccessUpdate,
+        title: 'Folder Access Updated',
+        data: { folderId: 'folder-id' },
+      });
+
+      await sut.onFolderAccessUpdate({
+        folderId: 'folder-id',
+        folderName: 'Project',
+        userId: 'user-id',
+        senderName: 'Admin',
+        kind: 'updated',
+        role: FolderUserRole.Viewer,
+        effect: FolderEffect.Allow,
+      });
+
+      expect(mocks.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-id',
+          type: NotificationType.FolderAccessUpdate,
+          title: 'Folder Access Updated',
+          data: {
+            folderId: 'folder-id',
+            kind: 'updated',
+            role: FolderUserRole.Viewer,
+            effect: FolderEffect.Allow,
+          },
+        }),
+      );
+      expect(mocks.websocket.clientSend).toHaveBeenCalledWith(
+        'on_notification',
+        'user-id',
+        expect.objectContaining({ id: 'notification-folder-access', type: NotificationType.FolderAccessUpdate }),
+      );
     });
   });
 

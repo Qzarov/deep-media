@@ -6,7 +6,16 @@ import { SystemConfig } from 'src/config';
 import { Asset } from 'src/database';
 import { EventConfig } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
-import { ImmichWorker, JobStatus, MetadataKey, QueueName, UserAvatarColor, UserStatus } from 'src/enum';
+import {
+  FolderEffect,
+  FolderUserRole,
+  ImmichWorker,
+  JobStatus,
+  MetadataKey,
+  QueueName,
+  UserAvatarColor,
+  UserStatus,
+} from 'src/enum';
 import { ConfigRepository } from 'src/repositories/config.repository';
 import { LoggingRepository } from 'src/repositories/logging.repository';
 import { JobItem, JobSource } from 'src/types';
@@ -40,6 +49,20 @@ type EventMap = {
   // album events
   AlbumUpdate: [{ id: string; recipientId: string }];
   AlbumInvite: [{ id: string; userId: string; senderName: string }];
+
+  // folder events
+  FolderInvite: [{ folderId: string; folderName: string; userId: string; senderName: string }];
+  FolderAccessUpdate: [
+    {
+      folderId: string;
+      folderName: string;
+      userId: string;
+      senderName: string;
+      kind: 'updated' | 'removed';
+      role?: FolderUserRole;
+      effect?: FolderEffect;
+    },
+  ];
 
   // asset events
   AssetCreate: [{ asset: Asset }];

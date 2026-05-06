@@ -228,10 +228,12 @@ export class FolderService extends BaseService {
     const callerIsOwner = callerRole === FolderUserRole.Owner;
 
     const existingUsers = await this.folderUserRepository.getByFolderId(id);
+    const addedUsers: Array<{ userId: string; role: FolderUserRole; effect: FolderEffect }> = [];
 
     for (const userDto of dto.folderUsers) {
       const { userId, role, effect, restrictions, validFrom, validUntil } = userDto;
       const assignedRole = role ?? FolderUserRole.Editor;
+      const assignedEffect = effect ?? FolderEffect.Allow;
 
       if (assignedRole === FolderUserRole.Owner) {
         throw new BadRequestException('Cannot add another owner');
@@ -259,11 +261,12 @@ export class FolderService extends BaseService {
         folderId: id,
         userId,
         role: assignedRole,
-        effect: effect ?? FolderEffect.Allow,
+        effect: assignedEffect,
         restrictions: JSON.stringify(restrictions ?? {}),
         validFrom: validFrom ?? null,
         validUntil: validUntil ?? null,
       });
+      addedUsers.push({ userId, role: assignedRole, effect: assignedEffect });
 
       await this.auditFolder(
         auth,
@@ -283,6 +286,12 @@ export class FolderService extends BaseService {
 
     const folder = await this.findOrFail(id);
     const users = await this.getFolderUsers(id);
+    for (const addedUser of addedUsers) {
+      if (addedUser.userId !== auth.user.id && addedUser.effect === FolderEffect.Allow) {
+        await this.emitFolderInvite(auth, folder, addedUser.userId);
+      }
+    }
+
     return mapFolder(folder, users);
   }
 
@@ -362,6 +371,11 @@ export class FolderService extends BaseService {
       userId,
       context,
     );
+
+    if (userId !== auth.user.id) {
+      const folder = await this.findOrFail(id);
+      await this.emitFolderAccessUpdate(auth, folder, userId, 'updated', dto.role, dto.effect);
+    }
   }
 
   async removeUser(auth: AuthDto, id: string, userId: string, context?: AuditLogContext): Promise<void> {
@@ -400,6 +414,11 @@ export class FolderService extends BaseService {
       userId,
       context,
     );
+
+    if (!isSelf) {
+      const folder = await this.findOrFail(id);
+      await this.emitFolderAccessUpdate(auth, folder, userId, 'removed');
+    }
   }
 
   async addAssets(
@@ -639,5 +658,37 @@ export class FolderService extends BaseService {
 
   private normalizeMetadata(metadata: AuditLogMetadata): AuditLogMetadata {
     return JSON.parse(JSON.stringify(metadata)) as AuditLogMetadata;
+  }
+
+  private async emitFolderInvite(auth: AuthDto, folder: FolderWithCounts, userId: string) {
+    await this.eventRepository.emit('FolderInvite', {
+      folderId: folder.id,
+      folderName: folder.name,
+      userId,
+      senderName: this.getActorName(auth),
+    });
+  }
+
+  private async emitFolderAccessUpdate(
+    auth: AuthDto,
+    folder: FolderWithCounts,
+    userId: string,
+    kind: 'updated' | 'removed',
+    role?: FolderUserRole,
+    effect?: FolderEffect,
+  ) {
+    await this.eventRepository.emit('FolderAccessUpdate', {
+      folderId: folder.id,
+      folderName: folder.name,
+      userId,
+      senderName: this.getActorName(auth),
+      kind,
+      role,
+      effect,
+    });
+  }
+
+  private getActorName(auth: AuthDto) {
+    return auth.user.name || auth.user.email;
   }
 }

@@ -1132,6 +1132,8 @@ export enum NotificationType {
   SystemMessage = 'SystemMessage',
   AlbumInvite = 'AlbumInvite',
   AlbumUpdate = 'AlbumUpdate',
+  FolderInvite = 'FolderInvite',
+  FolderAccessUpdate = 'FolderAccessUpdate',
   Custom = 'Custom',
 }
 
