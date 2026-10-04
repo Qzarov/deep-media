@@ -5,7 +5,7 @@
   import { normalizeSearchString } from '$lib/utils/string-utils.js';
   import { type AlbumResponseDto } from '@immich/sdk';
   import { Icon } from '@immich/ui';
-  import { mdiCheckCircle } from '@mdi/js';
+  import { mdiCheckCircle, mdiLockOutline } from '@mdi/js';
   import type { Action } from 'svelte/action';
   import AlbumListItemDetails from './AlbumListItemDetails.svelte';
 
@@ -132,7 +132,14 @@
     use:longPress={{ onLongPress: () => handleMultiSelectClicked() }}
   >
     <span class="size-16 shrink-0 rounded-xl bg-slate-300">
-      {#if album.albumThumbnailAssetId}
+      {#if album.isLocked}
+        <span
+          class="flex size-full items-center justify-center rounded-xl bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+          data-testid="album-image"
+        >
+          <Icon icon={mdiLockOutline} size="28" />
+        </span>
+      {:else if album.albumThumbnailAssetId}
         <img
           src={getAssetMediaUrl({ id: album.albumThumbnailAssetId })}
           alt={album.albumName}

@@ -366,16 +366,13 @@ export class AlbumService extends BaseService {
   }
 
   /**
-   * Without a PIN-unlocked session, don't reveal covers of locked albums, nor covers that
-   * happen to be an asset of some locked album.
+   * A locked album never exposes its cover, so no client can show it in a list. Without a
+   * PIN-unlocked session, covers of other albums that are an asset of some locked album are hidden too.
    */
   private async hideLockedCovers(auth: AuthDto, albums: AlbumResponseDto[]): Promise<AlbumResponseDto[]> {
-    if (!auth.sharedLink && auth.session?.hasElevatedPermission) {
-      return albums;
-    }
-
-    const coverIds = new Set(albums.flatMap((album) => album.albumThumbnailAssetId ?? []));
-    const lockedCovers = await this.accessRepository.asset.getInLockedAlbum(coverIds);
+    const isUnlocked = !auth.sharedLink && !!auth.session?.hasElevatedPermission;
+    const coverIds = new Set(albums.flatMap((album) => (album.isLocked ? [] : (album.albumThumbnailAssetId ?? []))));
+    const lockedCovers = isUnlocked ? new Set<string>() : await this.accessRepository.asset.getInLockedAlbum(coverIds);
     return albums.map((album) =>
       album.isLocked || (album.albumThumbnailAssetId && lockedCovers.has(album.albumThumbnailAssetId))
         ? { ...album, albumThumbnailAssetId: null }

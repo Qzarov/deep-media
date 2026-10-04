@@ -195,7 +195,8 @@ export const mapAlbum = (entity: MaybeDehydrated<MapAlbumDto>): AlbumResponseDto
   return {
     albumName: entity.albumName,
     description: entity.description,
-    albumThumbnailAssetId: entity.albumThumbnailAssetId,
+    // A locked album never exposes its cover, whatever endpoint returns it.
+    albumThumbnailAssetId: entity.isLocked ? null : entity.albumThumbnailAssetId,
     createdAt: asDateString(entity.createdAt),
     updatedAt: asDateString(entity.updatedAt),
     id: entity.id,

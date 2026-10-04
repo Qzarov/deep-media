@@ -1435,10 +1435,22 @@ describe(AlbumService.name, () => {
       expect(result.map((album) => album.albumThumbnailAssetId)).toEqual([null, null, plainCover]);
     });
 
-    it('should keep covers for a PIN-unlocked session', async () => {
+    it('should never expose the cover of a locked album, even to a PIN-unlocked session', async () => {
+      const { album, user } = owner();
+      mocks.album.getOwned.mockResolvedValue([
+        { ...getForAlbum(album), isLocked: true, albumThumbnailAssetId: newUuid() },
+      ]);
+      mocks.album.getMetadataForIds.mockResolvedValue([]);
+
+      const result = await sut.getAll(AuthFactory.from(user).session({ hasElevatedPermission: true }).build(), {});
+
+      expect(result[0].albumThumbnailAssetId).toBeNull();
+    });
+
+    it('should keep covers of normal albums for a PIN-unlocked session', async () => {
       const { album, user } = owner();
       const cover = newUuid();
-      mocks.album.getOwned.mockResolvedValue([{ ...getForAlbum(album), isLocked: true, albumThumbnailAssetId: cover }]);
+      mocks.album.getOwned.mockResolvedValue([{ ...getForAlbum(album), albumThumbnailAssetId: cover }]);
       mocks.album.getMetadataForIds.mockResolvedValue([]);
 
       const result = await sut.getAll(AuthFactory.from(user).session({ hasElevatedPermission: true }).build(), {});
