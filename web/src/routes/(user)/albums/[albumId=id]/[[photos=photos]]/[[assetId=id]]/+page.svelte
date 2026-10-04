@@ -47,6 +47,7 @@
   } from '$lib/services/album.service';
   import { getGlobalActions } from '$lib/services/app.service';
   import { getAssetBulkActions } from '$lib/services/asset.service';
+  import { getUserActions } from '$lib/services/user.service';
   import { SlideshowNavigation, SlideshowState, slideshowStore } from '$lib/stores/slideshow.store';
   import { handlePromiseError } from '$lib/utils';
   import { handleError } from '$lib/utils/handle-error';
@@ -314,6 +315,9 @@
 
   const { Cast } = $derived(getGlobalActions($t));
   const { Share } = $derived(getAlbumActions($t, album));
+  // Same as the Locked Folder: drop the PIN unlock of this session and leave the album.
+  const { LockSession } = $derived(getUserActions($t));
+  const onSessionLocked = () => goto(Route.albums());
   const { AddAssets, Upload } = $derived(getAlbumAssetsActions($t, album, timelineMultiSelectManager.assets));
 
   const Close = $derived({
@@ -334,6 +338,7 @@
   {onAlbumUserUpdate}
   onAlbumUserDelete={refreshAlbum}
   {onAlbumUpdate}
+  {onSessionLocked}
 />
 <CommandPaletteDefaultProvider name={$t('album')} actions={[AddAssets, Upload, Close]} />
 
@@ -498,6 +503,10 @@
       {#if viewMode === AlbumPageViewMode.VIEW}
         <ControlAppBar showBackButton backIcon={mdiArrowLeft} onClose={() => goto(Route.albums())}>
           {#snippet trailing()}
+            {#if album.isLocked}
+              <ActionButton action={LockSession} />
+            {/if}
+
             <ActionButton action={Cast} />
 
             {#if isEditor}
