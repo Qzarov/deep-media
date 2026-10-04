@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { JobName, JobStatus } from 'src/enum';
 import { TrashService } from 'src/services/trash.service';
+import { AuthFactory } from 'test/factories/auth.factory';
 import { authStub } from 'test/fixtures/auth.stub';
 import { newTestService, ServiceMocks } from 'test/utils';
 
@@ -76,8 +77,17 @@ describe(TrashService.name, () => {
       mocks.trash.getDeletedIds.mockResolvedValue(makeAssetIdStream(1));
       mocks.trash.empty.mockResolvedValue(1);
       await expect(sut.empty(authStub.user1)).resolves.toEqual({ count: 1 });
-      expect(mocks.trash.empty).toHaveBeenCalledWith('user-id');
+      expect(mocks.trash.empty).toHaveBeenCalledWith('user-id', { excludeLockedAlbums: true });
       expect(mocks.job.queue).toHaveBeenCalledWith({ name: JobName.AssetEmptyTrash, data: {} });
+    });
+
+    it('should also purge locked-album assets only for a PIN-unlocked session', async () => {
+      mocks.trash.empty.mockResolvedValue(0);
+      const auth = AuthFactory.from(authStub.user1.user).session({ hasElevatedPermission: true }).build();
+
+      await sut.empty(auth);
+
+      expect(mocks.trash.empty).toHaveBeenCalledWith(auth.user.id, { excludeLockedAlbums: false });
     });
   });
 

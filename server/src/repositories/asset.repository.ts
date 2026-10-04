@@ -29,6 +29,7 @@ import {
   anyUuid,
   asUuid,
   hasPeople,
+  notInLockedAlbum,
   removeUndefinedKeys,
   truncatedDate,
   unnest,
@@ -40,6 +41,7 @@ import {
   withFilePath,
   withFiles,
   withLibrary,
+  withoutLockedAlbumAssets,
   withOwner,
   withSmartSearch,
   withTagId,
@@ -85,6 +87,8 @@ interface AssetBuilderOptions {
   visibility?: AssetVisibility;
   withCoordinates?: boolean;
   bbox?: BoundingBox;
+  /** Leave out assets of locked albums (everywhere except inside the album itself). */
+  excludeLockedAlbums?: boolean;
 }
 
 export interface TimeBucketOptions extends AssetBuilderOptions {
@@ -470,6 +474,7 @@ export class AssetRepository {
                 .where(sql`(asset."localDateTime" at time zone 'UTC')::date`, '=', sql`today.date`)
                 .where('asset.ownerId', '=', anyUuid(ownerIds))
                 .where('asset.visibility', '=', AssetVisibility.Timeline)
+                .where(notInLockedAlbum)
                 .where((eb) =>
                   eb.exists((qb) =>
                     qb
@@ -699,6 +704,7 @@ export class AssetRepository {
       .where('ownerId', '=', asUuid(ownerId))
       .$if(visibility === undefined, withDefaultVisibility)
       .$if(!!visibility, (qb) => qb.where('asset.visibility', '=', visibility!))
+      .where(notInLockedAlbum)
       .$if(isFavorite !== undefined, (qb) => qb.where('isFavorite', '=', isFavorite!))
       .$if(!!isTrashed, (qb) => qb.where('asset.status', '!=', AssetStatus.Deleted))
       .where('deletedAt', isTrashed ? 'is not' : 'is', null)
@@ -735,6 +741,7 @@ export class AssetRepository {
               .innerJoin('album_asset', 'asset.id', 'album_asset.assetId')
               .where('album_asset.albumId', '=', asUuid(options.albumId!)),
           )
+          .$if(!!options.excludeLockedAlbums, withoutLockedAlbumAssets)
           .$if(!!options.personId, (qb) => hasPeople(qb, [options.personId!]))
           .$if(!!options.withStacked, (qb) =>
             qb
@@ -826,6 +833,7 @@ export class AssetRepository {
               ),
             ),
           )
+          .$if(!!options.excludeLockedAlbums, withoutLockedAlbumAssets)
           .$if(!!options.personId, (qb) => hasPeople(qb, [options.personId!]))
           .$if(!!options.userIds, (qb) => qb.where('asset.ownerId', '=', anyUuid(options.userIds!)))
           .$if(options.isFavorite !== undefined, (qb) => qb.where('asset.isFavorite', '=', options.isFavorite!))
@@ -921,6 +929,7 @@ export class AssetRepository {
       .$narrowType<{ value: NotNull }>()
       .where('ownerId', '=', asUuid(ownerId))
       .where('visibility', '=', AssetVisibility.Timeline)
+      .where(notInLockedAlbum)
       .where('type', '=', AssetType.Image)
       .where('deletedAt', 'is', null)
       .limit(maxFields)

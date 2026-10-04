@@ -34,7 +34,7 @@
     <div>
       <div
         class="size-6 rounded-sm bg-gray-200 bg-cover dark:bg-gray-600"
-        style={album.albumThumbnailAssetId
+        style={album.albumThumbnailAssetId && !album.isLocked
           ? `background-image:url('${getAssetMediaUrl({ id: album.albumThumbnailAssetId })}')`
           : ''}
       ></div>

@@ -45,6 +45,10 @@ export class AlbumTable {
   @Column({ type: 'boolean', default: true })
   isActivityEnabled!: Generated<boolean>;
 
+  // Locked albums need a PIN-unlocked session to open; their assets are hidden everywhere else.
+  @Column({ type: 'boolean', default: false })
+  isLocked!: Generated<boolean>;
+
   @Column({ default: AssetOrder.Desc })
   order!: Generated<AssetOrder>;
 

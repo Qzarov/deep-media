@@ -3,9 +3,11 @@
   import HeaderActionButton from '$lib/components/HeaderActionButton.svelte';
   import OnEvents from '$lib/components/OnEvents.svelte';
   import UserAvatar from '$lib/components/shared-components/UserAvatar.svelte';
+  import { authManager } from '$lib/managers/auth-manager.svelte';
   import {
     getAlbumActions,
     handleRemoveUserFromAlbum,
+    handleSetAlbumLocked,
     handleUpdateAlbum,
     handleUpdateUserAlbumRole,
   } from '$lib/services/album.service';
@@ -57,6 +59,16 @@
 
   const { AddUsers, CreateSharedLink } = $derived(getAlbumActions($t, album));
 
+  const isOwner = $derived(
+    album.albumUsers.some(({ user, role }) => role === AlbumUserRole.Owner && user.id === authManager.user.id),
+  );
+
+  const onLockedChange = async (isLocked: boolean) => {
+    if ((await handleSetAlbumLocked(album, isLocked)) === false) {
+      onClose();
+    }
+  };
+
   let sharedLinks: SharedLinkResponseDto[] = $state([]);
 
   onMount(async () => {
@@ -95,6 +107,9 @@
               checked={album.isActivityEnabled}
               onCheckedChange={(checked) => handleUpdateAlbum(album, { isActivityEnabled: checked })}
             />
+          </Field>
+          <Field label={$t('locked_album')} description={$t('locked_album_description')} disabled={!isOwner}>
+            <Switch checked={album.isLocked} onCheckedChange={onLockedChange} />
           </Field>
         </div>
       </div>

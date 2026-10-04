@@ -6,7 +6,7 @@ import { AssetStatus, AssetType, AssetVisibility, VectorIndex } from 'src/enum';
 import { probes } from 'src/repositories/database.repository';
 import { DB } from 'src/schema';
 import { AssetExifTable } from 'src/schema/tables/asset-exif.table';
-import { anyUuid, searchAssetBuilder, withExifInner } from 'src/utils/database';
+import { anyUuid, notInLockedAlbum, searchAssetBuilder, withExifInner } from 'src/utils/database';
 import { paginationHelper } from 'src/utils/pagination';
 import { isValidInteger } from 'src/validation';
 
@@ -386,6 +386,7 @@ export class SearchRepository {
           .innerJoin('asset', 'asset.id', 'asset_exif.assetId')
           .where('asset.ownerId', '=', anyUuid(userIds))
           .where('asset.visibility', '=', AssetVisibility.Timeline)
+          .where(notInLockedAlbum)
           .where('asset.type', '=', AssetType.Image)
           .where('asset.deletedAt', 'is', null)
           .orderBy('city')
@@ -402,6 +403,7 @@ export class SearchRepository {
                 .innerJoin('asset', 'asset.id', 'asset_exif.assetId')
                 .where('asset.ownerId', '=', anyUuid(userIds))
                 .where('asset.visibility', '=', AssetVisibility.Timeline)
+                .where(notInLockedAlbum)
                 .where('asset.type', '=', AssetType.Image)
                 .where('asset.deletedAt', 'is', null)
                 .whereRef('asset_exif.city', '>', 'cte.city')
@@ -497,6 +499,7 @@ export class SearchRepository {
       .innerJoin('asset', 'asset.id', 'asset_exif.assetId')
       .where('ownerId', '=', anyUuid(userIds))
       .where('visibility', '=', AssetVisibility.Timeline)
+      .where(notInLockedAlbum)
       .where('deletedAt', 'is', null)
       .where(field, 'is not', null)
       .where(field, '!=', '');

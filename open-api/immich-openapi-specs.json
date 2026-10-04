@@ -15325,6 +15325,10 @@
             "description": "Activity feed enabled",
             "type": "boolean"
           },
+          "isLocked": {
+            "description": "Album requires a PIN-unlocked session; its assets are hidden elsewhere",
+            "type": "boolean"
+          },
           "lastModifiedAssetTimestamp": {
             "description": "Last modified asset timestamp",
             "format": "date-time",
@@ -15358,6 +15362,7 @@
           "hasSharedLink",
           "id",
           "isActivityEnabled",
+          "isLocked",
           "shared",
           "updatedAt"
         ],
@@ -25368,6 +25373,10 @@
           },
           "isActivityEnabled": {
             "description": "Enable activity feed",
+            "type": "boolean"
+          },
+          "isLocked": {
+            "description": "Lock the album behind the PIN code (owner only; unlocking requires a PIN-unlocked session)",
             "type": "boolean"
           },
           "order": {

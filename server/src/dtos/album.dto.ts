@@ -59,6 +59,10 @@ const UpdateAlbumSchema = z
     description: z.string().optional().describe('Album description'),
     albumThumbnailAssetId: z.uuidv4().optional().describe('Album thumbnail asset ID'),
     isActivityEnabled: z.boolean().optional().describe('Enable activity feed'),
+    isLocked: z
+      .boolean()
+      .optional()
+      .describe('Lock the album behind the PIN code (owner only; unlocking requires a PIN-unlocked session)'),
     order: AssetOrderSchema.optional(),
   })
   .meta({ id: 'UpdateAlbumDto' });
@@ -130,6 +134,7 @@ export const AlbumResponseSchema = z
     // TODO: use `isoDatetimeToDate` when using `ZodSerializerDto` on the controllers.
     endDate: z.string().meta({ format: 'date-time' }).optional().describe('End date (latest asset)'),
     isActivityEnabled: z.boolean().describe('Activity feed enabled'),
+    isLocked: z.boolean().describe('Album requires a PIN-unlocked session; its assets are hidden elsewhere'),
     order: AssetOrderSchema.optional(),
     contributorCounts: z.array(ContributorCountResponseSchema).optional(),
   })
@@ -158,6 +163,7 @@ export type MapAlbumDto = {
   updatedAt: Date;
   id: string;
   isActivityEnabled: boolean;
+  isLocked: boolean;
   order: AssetOrder;
 };
 
@@ -200,6 +206,7 @@ export const mapAlbum = (entity: MaybeDehydrated<MapAlbumDto>): AlbumResponseDto
     endDate: asDateString(endDate),
     assetCount: entity.assets?.length || 0,
     isActivityEnabled: entity.isActivityEnabled,
+    isLocked: entity.isLocked,
     order: entity.order,
   };
 };

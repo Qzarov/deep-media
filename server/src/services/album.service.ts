@@ -38,7 +38,8 @@ export class AlbumService extends BaseService {
     };
   }
 
-  async getAll({ user: { id: ownerId } }: AuthDto, { assetId, shared }: GetAlbumsDto): Promise<AlbumResponseDto[]> {
+  async getAll(auth: AuthDto, { assetId, shared }: GetAlbumsDto): Promise<AlbumResponseDto[]> {
+    const ownerId = auth.user.id;
     await this.albumRepository.updateThumbnails();
 
     let albums: MapAlbumDto[];
@@ -60,7 +61,7 @@ export class AlbumService extends BaseService {
       albumMetadata[metadata.albumId] = metadata;
     }
 
-    return albums.map((album) => ({
+    const responses = albums.map((album) => ({
       ...mapAlbum(album),
       sharedLinks: undefined,
       startDate: asDateString(albumMetadata[album.id]?.startDate ?? undefined),
@@ -69,10 +70,13 @@ export class AlbumService extends BaseService {
       // lastModifiedAssetTimestamp is only used in mobile app, please remove if not need
       lastModifiedAssetTimestamp: asDateString(albumMetadata[album.id]?.lastModifiedAssetTimestamp ?? undefined),
     }));
+
+    return this.hideLockedCovers(auth, responses);
   }
 
   async get(auth: AuthDto, id: string): Promise<AlbumResponseDto> {
-    await this.requireAccess({ auth, permission: Permission.AlbumRead, ids: [id] });
+    // A locked album's metadata stays readable so clients can ask for the PIN; its assets do not.
+    await this.requireAccess({ auth, permission: Permission.AlbumRead, ids: [id], allowLockedAlbums: true });
     await this.albumRepository.updateThumbnails();
     const album = await this.findOrFail(id, auth.user.id, { withAssets: false });
     const [albumMetadataForIds] = await this.albumRepository.getMetadataForIds([album.id]);
@@ -81,14 +85,17 @@ export class AlbumService extends BaseService {
     const hasSharedLink = album.sharedLinks && album.sharedLinks.length > 0;
     const isShared = hasSharedUsers || hasSharedLink;
 
-    return {
-      ...mapAlbum(album),
-      startDate: asDateString(albumMetadataForIds?.startDate ?? undefined),
-      endDate: asDateString(albumMetadataForIds?.endDate ?? undefined),
-      assetCount: albumMetadataForIds?.assetCount ?? 0,
-      lastModifiedAssetTimestamp: asDateString(albumMetadataForIds?.lastModifiedAssetTimestamp ?? undefined),
-      contributorCounts: isShared ? await this.albumRepository.getContributorCounts(album.id) : undefined,
-    };
+    const [response] = await this.hideLockedCovers(auth, [
+      {
+        ...mapAlbum(album),
+        startDate: asDateString(albumMetadataForIds?.startDate ?? undefined),
+        endDate: asDateString(albumMetadataForIds?.endDate ?? undefined),
+        assetCount: albumMetadataForIds?.assetCount ?? 0,
+        lastModifiedAssetTimestamp: asDateString(albumMetadataForIds?.lastModifiedAssetTimestamp ?? undefined),
+        contributorCounts: isShared ? await this.albumRepository.getContributorCounts(album.id) : undefined,
+      },
+    ]);
+    return response;
   }
 
   async getMapMarkers(auth: AuthDto, id: string): Promise<MapMarkerResponseDto[]> {
@@ -98,7 +105,8 @@ export class AlbumService extends BaseService {
       return [];
     }
 
-    return this.mapRepository.getAlbumMapMarkers(id);
+    const locked = await this.accessRepository.album.getLocked(new Set([id]));
+    return this.mapRepository.getAlbumMapMarkers(id, { excludeLockedAlbums: !locked.has(id) });
   }
 
   async create(auth: AuthDto, dto: CreateAlbumDto): Promise<AlbumResponseDto> {
@@ -149,6 +157,16 @@ export class AlbumService extends BaseService {
 
     const album = await this.findOrFail(id, auth.user.id, { withAssets: true });
 
+    if (dto.isLocked !== undefined && dto.isLocked !== album.isLocked) {
+      await this.requireAccess({ auth, permission: Permission.AlbumDelete, ids: [id] }); // owner only
+      if (dto.isLocked) {
+        const { pinCode } = await this.userRepository.getForPinCode(auth.user.id);
+        if (!pinCode) {
+          throw new BadRequestException('Set up a PIN code before locking an album');
+        }
+      }
+    }
+
     if (dto.albumThumbnailAssetId) {
       const results = await this.albumRepository.getAssetIds(id, [dto.albumThumbnailAssetId]);
       if (results.size === 0) {
@@ -163,6 +181,7 @@ export class AlbumService extends BaseService {
         description: dto.description,
         albumThumbnailAssetId: dto.albumThumbnailAssetId,
         isActivityEnabled: dto.isActivityEnabled,
+        isLocked: dto.isLocked,
         order: dto.order,
       },
       auth.user.id,
@@ -344,6 +363,24 @@ export class AlbumService extends BaseService {
   async updateUser(auth: AuthDto, id: string, userId: string, dto: UpdateAlbumUserDto): Promise<void> {
     await this.requireAccess({ auth, permission: Permission.AlbumShare, ids: [id] });
     await this.albumUserRepository.update({ albumId: id, userId }, { role: dto.role });
+  }
+
+  /**
+   * Without a PIN-unlocked session, don't reveal covers of locked albums, nor covers that
+   * happen to be an asset of some locked album.
+   */
+  private async hideLockedCovers(auth: AuthDto, albums: AlbumResponseDto[]): Promise<AlbumResponseDto[]> {
+    if (!auth.sharedLink && auth.session?.hasElevatedPermission) {
+      return albums;
+    }
+
+    const coverIds = new Set(albums.flatMap((album) => album.albumThumbnailAssetId ?? []));
+    const lockedCovers = await this.accessRepository.asset.getInLockedAlbum(coverIds);
+    return albums.map((album) =>
+      album.isLocked || (album.albumThumbnailAssetId && lockedCovers.has(album.albumThumbnailAssetId))
+        ? { ...album, albumThumbnailAssetId: null }
+        : album,
+    );
   }
 
   private async findOrFail(id: string, authUserId: string, options: AlbumInfoOptions) {

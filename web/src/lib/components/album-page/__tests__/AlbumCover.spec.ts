@@ -39,4 +39,19 @@ describe('AlbumCover component', () => {
     expect(img.className).toBe('size-full rounded-xl object-cover aspect-square asdf');
     expect(img.getAttribute('src')).toStrictEqual(expect.any(String));
   });
+
+  it('renders a lock instead of the cover for a locked album', () => {
+    vi.mocked(getAssetMediaUrl).mockReturnValue('/asdf');
+    const component = render(AlbumCover, {
+      album: albumFactory.build({
+        albumName: 'secret',
+        albumThumbnailAssetId: '123',
+        isLocked: true,
+      }),
+    });
+    const cover = component.getByTestId('album-image');
+    expect(cover.tagName).not.toBe('IMG');
+    expect(cover.getAttribute('aria-label')).toBe('secret · locked_album');
+    expect(component.container.querySelector('img')).toBeNull();
+  });
 });

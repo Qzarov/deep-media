@@ -21,12 +21,14 @@ export const newAccessRepositoryMock = (): IAccessRepositoryMock => {
       checkAlbumAccess: vitest.fn().mockResolvedValue(new Set()),
       checkPartnerAccess: vitest.fn().mockResolvedValue(new Set()),
       checkSharedLinkAccess: vitest.fn().mockResolvedValue(new Set()),
+      getInLockedAlbum: vitest.fn().mockResolvedValue(new Set()),
     },
 
     album: {
       checkOwnerAccess: vitest.fn().mockResolvedValue(new Set()),
       checkSharedAlbumAccess: vitest.fn().mockResolvedValue(new Set()),
       checkSharedLinkAccess: vitest.fn().mockResolvedValue(new Set()),
+      getLocked: vitest.fn().mockResolvedValue(new Set()),
     },
 
     authDevice: {

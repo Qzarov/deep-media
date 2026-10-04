@@ -3,6 +3,7 @@ import { InjectKysely } from 'nestjs-kysely';
 import { DummyValue, GenerateSql } from 'src/decorators';
 import { AssetStatus } from 'src/enum';
 import { DB } from 'src/schema';
+import { notInLockedAlbum } from 'src/utils/database';
 
 export class TrashRepository {
   constructor(@InjectKysely() private db: Kysely<DB>) {}
@@ -24,11 +25,12 @@ export class TrashRepository {
   }
 
   @GenerateSql({ params: [DummyValue.UUID] })
-  async empty(userId: string): Promise<number> {
+  async empty(userId: string, { excludeLockedAlbums }: { excludeLockedAlbums?: boolean } = {}): Promise<number> {
     const { numUpdatedRows } = await this.db
       .updateTable('asset')
       .where('ownerId', '=', userId)
       .where('status', '=', AssetStatus.Trashed)
+      .$if(!!excludeLockedAlbums, (qb) => qb.where(notInLockedAlbum))
       .set({ status: AssetStatus.Deleted })
       .executeTakeFirst();
 

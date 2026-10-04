@@ -3,7 +3,7 @@ import { Kysely } from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import { AssetVisibility } from 'src/enum';
 import { DB } from 'src/schema';
-import { anyUuid } from 'src/utils/database';
+import { anyUuid, notInLockedAlbum } from 'src/utils/database';
 
 const builder = (db: Kysely<DB>) =>
   db
@@ -24,17 +24,19 @@ export class DownloadRepository {
     return builder(this.db).select(['asset.originalPath']).where('asset.id', '=', anyUuid(ids)).stream();
   }
 
-  downloadAlbumId(albumId: string) {
+  downloadAlbumId(albumId: string, { excludeLockedAlbums }: { excludeLockedAlbums?: boolean } = {}) {
     return builder(this.db)
       .innerJoin('album_asset', 'asset.id', 'album_asset.assetId')
       .where('album_asset.albumId', '=', albumId)
+      .$if(!!excludeLockedAlbums, (qb) => qb.where(notInLockedAlbum))
       .stream();
   }
 
-  downloadUserId(userId: string) {
+  downloadUserId(userId: string, { excludeLockedAlbums }: { excludeLockedAlbums?: boolean } = {}) {
     return builder(this.db)
       .where('asset.ownerId', '=', userId)
       .where('asset.visibility', '!=', AssetVisibility.Hidden)
+      .$if(!!excludeLockedAlbums, (qb) => qb.where(notInLockedAlbum))
       .stream();
   }
 }

@@ -33,7 +33,10 @@ export class TrashService extends BaseService {
   }
 
   async empty(auth: AuthDto): Promise<TrashResponseDto> {
-    const count = await this.trashRepository.empty(auth.user.id);
+    // A session without the PIN does not see locked-album assets in the trash, so it must not purge them.
+    const count = await this.trashRepository.empty(auth.user.id, {
+      excludeLockedAlbums: !auth.session?.hasElevatedPermission,
+    });
     if (count > 0) {
       await this.jobRepository.queue({ name: JobName.AssetEmptyTrash, data: {} });
     }

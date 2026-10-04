@@ -64,7 +64,13 @@ export class FolderService extends BaseService {
     if (assetIds.length === 0) {
       return [];
     }
-    const assets = await this.assetRepository.getByIds(assetIds);
+    // Assets of locked albums are only shown inside their album.
+    const locked = await this.accessRepository.asset.getInLockedAlbum(new Set(assetIds));
+    const visibleIds = assetIds.filter((assetId) => !locked.has(assetId));
+    if (visibleIds.length === 0) {
+      return [];
+    }
+    const assets = await this.assetRepository.getByIds(visibleIds);
     return assets.map((asset) => mapAsset(asset, { auth }));
   }
 

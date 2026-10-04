@@ -9,7 +9,7 @@ import { DB } from 'src/schema';
 import { AssetFaceTable } from 'src/schema/tables/asset-face.table';
 import { FaceSearchTable } from 'src/schema/tables/face-search.table';
 import { PersonTable } from 'src/schema/tables/person.table';
-import { dummy, removeUndefinedKeys, withFilePath } from 'src/utils/database';
+import { dummy, notInLockedAlbum, removeUndefinedKeys, withFilePath } from 'src/utils/database';
 import { paginationHelper, PaginationOptions } from 'src/utils/pagination';
 
 export interface PersonSearchOptions {
@@ -163,6 +163,7 @@ export class PersonRepository {
       .where('person.ownerId', '=', userId)
       .where('asset_face.deletedAt', 'is', null)
       .where('asset_face.isVisible', 'is', true)
+      .where(notInLockedAlbum)
       .orderBy('person.isHidden', 'asc')
       .orderBy('person.isFavorite', 'desc')
       .having((eb) =>
@@ -373,6 +374,7 @@ export class PersonRepository {
                   .selectFrom('asset')
                   .whereRef('asset.id', '=', 'asset_face.assetId')
                   .where('asset.visibility', '=', sql.lit(AssetVisibility.Timeline))
+                  .where(notInLockedAlbum)
                   .where('asset.deletedAt', 'is', null),
               ),
             ),

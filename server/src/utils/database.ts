@@ -80,6 +80,27 @@ export function withDefaultVisibility<O>(qb: SelectQueryBuilder<DB, 'asset', O>)
   return qb.where('asset.visibility', 'in', [sql.lit(AssetVisibility.Archive), sql.lit(AssetVisibility.Timeline)]);
 }
 
+/**
+ * Assets in a locked album are only shown inside that album, so every other listing
+ * (timeline, search, map, memories, people, ...) has to leave them out.
+ */
+export function notInLockedAlbum(eb: ExpressionBuilder<DB, 'asset'>) {
+  return eb.not(
+    eb.exists(
+      eb
+        .selectFrom('album_asset')
+        .innerJoin('album', 'album.id', 'album_asset.albumId')
+        .whereRef('album_asset.assetId', '=', 'asset.id')
+        .where('album.isLocked', '=', true)
+        .where('album.deletedAt', 'is', null),
+    ),
+  );
+}
+
+export function withoutLockedAlbumAssets<O>(qb: SelectQueryBuilder<DB, 'asset', O>) {
+  return qb.where(notInLockedAlbum);
+}
+
 // TODO come up with a better query that only selects the fields we need
 export function withExif<O>(qb: SelectQueryBuilder<DB, 'asset', O>) {
   return qb
@@ -360,6 +381,7 @@ export function searchAssetBuilder(kysely: Kysely<DB>, options: AssetSearchBuild
     .withPlugin(joinDeduplicationPlugin)
     .selectFrom('asset')
     .where('asset.visibility', '=', visibility)
+    .where(notInLockedAlbum)
     .$if(!!options.albumIds && options.albumIds.length > 0, (qb) => inAlbums(qb, options.albumIds!))
     .$if(!!options.tagIds && options.tagIds.length > 0, (qb) => hasTags(qb, options.tagIds!))
     .$if(options.tagIds === null, (qb) =>

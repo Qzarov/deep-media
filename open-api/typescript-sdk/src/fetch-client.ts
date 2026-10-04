@@ -474,6 +474,8 @@ export type AlbumResponseDto = {
     id: string;
     /** Activity feed enabled */
     isActivityEnabled: boolean;
+    /** Album requires a PIN-unlocked session; its assets are hidden elsewhere */
+    isLocked: boolean;
     /** Last modified asset timestamp */
     lastModifiedAssetTimestamp?: string;
     order?: AssetOrder;
@@ -527,6 +529,8 @@ export type UpdateAlbumDto = {
     description?: string;
     /** Enable activity feed */
     isActivityEnabled?: boolean;
+    /** Lock the album behind the PIN code (owner only; unlocking requires a PIN-unlocked session) */
+    isLocked?: boolean;
     order?: AssetOrder;
 };
 export type BulkIdsDto = {

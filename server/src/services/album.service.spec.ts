@@ -12,6 +12,12 @@ import { getForAlbum } from 'test/mappers';
 import { newUuid } from 'test/small.factory';
 import { newTestService, ServiceMocks } from 'test/utils';
 
+const owner = () => {
+  const album = AlbumFactory.create();
+  const { user } = album.albumUsers.find(({ role }) => role === AlbumUserRole.Owner)!;
+  return { album, user };
+};
+
 describe(AlbumService.name, () => {
   let sut: AlbumService;
   let mocks: ServiceMocks;
@@ -1333,4 +1339,112 @@ describe(AlbumService.name, () => {
 
   //   await expect(sut.removeAssets(auth, albumId, { ids: ['1'] })).rejects.toBeInstanceOf(ForbiddenException);
   // });
+  describe('locked albums', () => {
+    it('should let the owner lock an album when they have a PIN code', async () => {
+      const { album, user } = owner();
+      mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set([album.id]));
+      mocks.album.getById.mockResolvedValue(getForAlbum(album));
+      mocks.album.update.mockResolvedValue(getForAlbum(album));
+      mocks.user.getForPinCode.mockResolvedValue({ pinCode: 'hashed', password: 'hashed' });
+
+      await sut.update(AuthFactory.create(user), album.id, { isLocked: true });
+
+      expect(mocks.album.update).toHaveBeenCalledWith(album.id, expect.objectContaining({ isLocked: true }), user.id);
+    });
+
+    it('should refuse to lock an album when the owner has no PIN code', async () => {
+      const { album, user } = owner();
+      mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set([album.id]));
+      mocks.album.getById.mockResolvedValue(getForAlbum(album));
+      mocks.user.getForPinCode.mockResolvedValue({ pinCode: null, password: 'hashed' });
+
+      await expect(sut.update(AuthFactory.create(user), album.id, { isLocked: true })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(mocks.album.update).not.toHaveBeenCalled();
+    });
+
+    it('should not let an editor lock a shared album', async () => {
+      const { album } = owner();
+      const editor = UserFactory.create();
+      mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set());
+      mocks.access.album.checkSharedAlbumAccess.mockResolvedValue(new Set([album.id]));
+      mocks.album.getById.mockResolvedValue(getForAlbum(album));
+
+      await expect(sut.update(AuthFactory.create(editor), album.id, { isLocked: true })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(mocks.album.update).not.toHaveBeenCalled();
+    });
+
+    it('should require a PIN-unlocked session to change a locked album', async () => {
+      const { album, user } = owner();
+      mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set([album.id]));
+      mocks.access.album.getLocked.mockResolvedValue(new Set([album.id]));
+
+      await expect(
+        sut.update(AuthFactory.from(user).session().build(), album.id, { isLocked: false }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(mocks.album.update).not.toHaveBeenCalled();
+    });
+
+    it('should let the owner unlock a locked album from a PIN-unlocked session', async () => {
+      const { album, user } = owner();
+      const locked = { ...getForAlbum(album), isLocked: true };
+      mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set([album.id]));
+      mocks.access.album.getLocked.mockResolvedValue(new Set([album.id]));
+      mocks.album.getById.mockResolvedValue(locked);
+      mocks.album.update.mockResolvedValue({ ...locked, isLocked: false });
+
+      await sut.update(AuthFactory.from(user).session({ hasElevatedPermission: true }).build(), album.id, {
+        isLocked: false,
+      });
+
+      expect(mocks.album.update).toHaveBeenCalledWith(album.id, expect.objectContaining({ isLocked: false }), user.id);
+    });
+
+    it('should return locked album metadata without its cover when the session is not unlocked', async () => {
+      const { album, user } = owner();
+      const coverId = newUuid();
+      mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set([album.id]));
+      mocks.access.album.getLocked.mockResolvedValue(new Set([album.id]));
+      mocks.album.getById.mockResolvedValue({ ...getForAlbum(album), isLocked: true, albumThumbnailAssetId: coverId });
+      mocks.album.getMetadataForIds.mockResolvedValue([]);
+
+      const result = await sut.get(AuthFactory.from(user).session().build(), album.id);
+
+      expect(result.isLocked).toBe(true);
+      expect(result.albumThumbnailAssetId).toBeNull();
+    });
+
+    it('should hide covers of locked albums and covers taken from locked albums in the list', async () => {
+      const { album: lockedAlbum, user } = owner();
+      const otherAlbum = AlbumFactory.from().owner(user).build();
+      const plainAlbum = AlbumFactory.from().owner(user).build();
+      const [lockedCover, sharedCover, plainCover] = [newUuid(), newUuid(), newUuid()];
+      mocks.album.getOwned.mockResolvedValue([
+        { ...getForAlbum(lockedAlbum), isLocked: true, albumThumbnailAssetId: lockedCover },
+        { ...getForAlbum(otherAlbum), albumThumbnailAssetId: sharedCover },
+        { ...getForAlbum(plainAlbum), albumThumbnailAssetId: plainCover },
+      ]);
+      mocks.album.getMetadataForIds.mockResolvedValue([]);
+      mocks.access.asset.getInLockedAlbum.mockResolvedValue(new Set([lockedCover, sharedCover]));
+
+      const result = await sut.getAll(AuthFactory.from(user).session().build(), {});
+
+      expect(result.map((album) => album.albumThumbnailAssetId)).toEqual([null, null, plainCover]);
+    });
+
+    it('should keep covers for a PIN-unlocked session', async () => {
+      const { album, user } = owner();
+      const cover = newUuid();
+      mocks.album.getOwned.mockResolvedValue([{ ...getForAlbum(album), isLocked: true, albumThumbnailAssetId: cover }]);
+      mocks.album.getMetadataForIds.mockResolvedValue([]);
+
+      const result = await sut.getAll(AuthFactory.from(user).session({ hasElevatedPermission: true }).build(), {});
+
+      expect(result[0].albumThumbnailAssetId).toBe(cover);
+      expect(mocks.access.asset.getInLockedAlbum).not.toHaveBeenCalled();
+    });
+  });
 });

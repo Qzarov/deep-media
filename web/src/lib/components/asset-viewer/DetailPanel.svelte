@@ -352,8 +352,9 @@
                 <img
                   alt={album.albumName}
                   class="size-12.5 rounded-sm object-cover"
-                  src={album.albumThumbnailAssetId &&
-                    getAssetMediaUrl({ id: album.albumThumbnailAssetId, size: AssetMediaSize.Preview })}
+                  src={album.albumThumbnailAssetId && !album.isLocked
+                    ? getAssetMediaUrl({ id: album.albumThumbnailAssetId, size: AssetMediaSize.Preview })
+                    : null}
                   draggable="false"
                 />
               </div>

@@ -22,11 +22,15 @@ export class DownloadService extends BaseService {
     } else if (dto.albumId) {
       const albumId = dto.albumId;
       await this.requireAccess({ auth, permission: Permission.AlbumDownload, ids: [albumId] });
-      assets = this.downloadRepository.downloadAlbumId(albumId);
+      // Assets shared with some other, locked album stay out of a normal album's download.
+      const locked = await this.accessRepository.album.getLocked(new Set([albumId]));
+      assets = this.downloadRepository.downloadAlbumId(albumId, { excludeLockedAlbums: !locked.has(albumId) });
     } else if (dto.userId) {
       const userId = dto.userId;
       await this.requireAccess({ auth, permission: Permission.TimelineDownload, ids: [userId] });
-      assets = this.downloadRepository.downloadUserId(userId);
+      assets = this.downloadRepository.downloadUserId(userId, {
+        excludeLockedAlbums: !auth.session?.hasElevatedPermission,
+      });
     } else {
       throw new BadRequestException('assetIds, albumId, or userId is required');
     }

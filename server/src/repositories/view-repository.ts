@@ -3,7 +3,7 @@ import { InjectKysely } from 'nestjs-kysely';
 import { DummyValue, GenerateSql } from 'src/decorators';
 import { AssetVisibility } from 'src/enum';
 import { DB } from 'src/schema';
-import { asUuid, withExif } from 'src/utils/database';
+import { asUuid, notInLockedAlbum, withExif } from 'src/utils/database';
 
 export class ViewRepository {
   constructor(@InjectKysely() private db: Kysely<DB>) {}
@@ -16,6 +16,7 @@ export class ViewRepository {
       .distinct()
       .where('ownerId', '=', asUuid(userId))
       .where('visibility', '=', AssetVisibility.Timeline)
+      .where(notInLockedAlbum)
       .where('deletedAt', 'is', null)
       .where('fileCreatedAt', 'is not', null)
       .where('fileModifiedAt', 'is not', null)
@@ -36,6 +37,7 @@ export class ViewRepository {
       .$call(withExif)
       .where('ownerId', '=', asUuid(userId))
       .where('visibility', '=', AssetVisibility.Timeline)
+      .where(notInLockedAlbum)
       .where('deletedAt', 'is', null)
       .where('fileCreatedAt', 'is not', null)
       .where('fileModifiedAt', 'is not', null)

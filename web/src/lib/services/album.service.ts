@@ -5,6 +5,7 @@ import {
   AlbumUserRole,
   BulkIdErrorReason,
   deleteAlbum,
+  getAuthStatus,
   removeUserFromAlbum,
   updateAlbumInfo,
   updateAlbumUser,
@@ -221,6 +222,24 @@ export const handleUpdateAlbum = async ({ id }: { id: string }, dto: UpdateAlbum
   } catch (error) {
     handleError(error, $t('errors.unable_to_update_album_info'));
   }
+};
+
+/**
+ * Locking needs a PIN code, since every later visit asks for it; send owners without one to set it up.
+ * Returns false when the user was redirected instead.
+ */
+export const handleSetAlbumLocked = async (album: AlbumResponseDto, isLocked: boolean) => {
+  if (isLocked) {
+    const { pinCode } = await getAuthStatus();
+    if (!pinCode) {
+      const $t = await getFormatter();
+      toastManager.info($t('locked_album_pin_required'));
+      await goto(Route.pinPrompt({ continue: Route.viewAlbum(album) }));
+      return false;
+    }
+  }
+
+  return handleUpdateAlbum(album, { isLocked });
 };
 
 export const handleDeleteAlbum = async (album: AlbumResponseDto, options?: { prompt?: boolean; notify?: boolean }) => {

@@ -22,7 +22,37 @@ export type AccessRequest = {
   auth: AuthDto;
   permission: Permission;
   ids: Set<string> | string[];
+  /**
+   * Skip the locked-album gate. Only for reading a locked album's own metadata (name, lock flag),
+   * so a client can tell the user to enter their PIN. Never honored for shared links.
+   */
+  allowLockedAlbums?: boolean;
 };
+
+// Permissions whose ids are asset ids / album ids, gated by locked albums (see album.isLocked).
+const LOCKED_ALBUM_ASSET_PERMISSIONS = new Set<Permission>([
+  Permission.AssetRead,
+  Permission.AssetView,
+  Permission.AssetDownload,
+  Permission.AssetShare,
+  Permission.AssetUpdate,
+  Permission.AssetDelete,
+  Permission.AssetCopy,
+  Permission.AssetEditGet,
+  Permission.AssetEditCreate,
+  Permission.AssetEditDelete,
+]);
+
+const LOCKED_ALBUM_PERMISSIONS = new Set<Permission>([
+  Permission.ActivityCreate,
+  Permission.AlbumRead,
+  Permission.AlbumUpdate,
+  Permission.AlbumDelete,
+  Permission.AlbumShare,
+  Permission.AlbumDownload,
+  Permission.AlbumAssetCreate,
+  Permission.AlbumAssetDelete,
+]);
 
 type SharedLinkAccessRequest = { sharedLink: AuthSharedLink; permission: Permission; ids: Set<string> };
 type OtherAccessRequest = { auth: AuthDto; permission: Permission; ids: Set<string> };
@@ -43,16 +73,40 @@ export const requireAccess = async (access: AccessRepository, request: AccessReq
 
 export const checkAccess = async (
   access: AccessRepository,
-  { ids, auth, permission }: AccessRequest,
+  { ids, auth, permission, allowLockedAlbums }: AccessRequest,
 ): Promise<Set<string>> => {
   const idSet = Array.isArray(ids) ? new Set(ids) : ids;
   if (idSet.size === 0) {
     return new Set<string>();
   }
 
-  return auth.sharedLink
-    ? checkSharedLinkAccess(access, { sharedLink: auth.sharedLink, permission, ids: idSet })
-    : checkOtherAccess(access, { auth, permission, ids: idSet });
+  const allowed = auth.sharedLink
+    ? await checkSharedLinkAccess(access, { sharedLink: auth.sharedLink, permission, ids: idSet })
+    : await checkOtherAccess(access, { auth, permission, ids: idSet });
+
+  // Shared links can never be PIN-unlocked, so locked albums are closed to them entirely.
+  const isUnlocked = !auth.sharedLink && (allowLockedAlbums || !!auth.session?.hasElevatedPermission);
+  return isUnlocked ? allowed : withoutLockedAlbums(access, permission, allowed);
+};
+
+const withoutLockedAlbums = async (
+  access: AccessRepository,
+  permission: Permission,
+  ids: Set<string>,
+): Promise<Set<string>> => {
+  if (ids.size === 0) {
+    return ids;
+  }
+
+  if (LOCKED_ALBUM_ASSET_PERMISSIONS.has(permission)) {
+    return setDifference(ids, await access.asset.getInLockedAlbum(ids));
+  }
+
+  if (LOCKED_ALBUM_PERMISSIONS.has(permission)) {
+    return setDifference(ids, await access.album.getLocked(ids));
+  }
+
+  return ids;
 };
 
 const checkSharedLinkAccess = async (

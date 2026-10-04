@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { AssetVisibility } from 'src/enum';
 import { TimelineService } from 'src/services/timeline.service';
+import { AuthFactory } from 'test/factories/auth.factory';
 import { authStub } from 'test/fixtures/auth.stub';
 import { newTestService, ServiceMocks } from 'test/utils';
 
@@ -21,6 +22,7 @@ describe(TimelineService.name, () => {
       );
       expect(mocks.asset.getTimeBuckets).toHaveBeenCalledWith({
         userIds: [authStub.admin.user.id],
+        excludeLockedAlbums: true,
       });
     });
 
@@ -39,7 +41,60 @@ describe(TimelineService.name, () => {
       expect(mocks.asset.getTimeBuckets).toHaveBeenCalledWith({
         userIds: [authStub.admin.user.id],
         bbox: { west: -70, south: -30, east: 120, north: 55 },
+        excludeLockedAlbums: true,
       });
+    });
+
+    it('should not hide locked-album assets inside the locked album itself', async () => {
+      mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set(['album-id']));
+      mocks.access.album.getLocked.mockResolvedValue(new Set(['album-id']));
+      mocks.asset.getTimeBuckets.mockResolvedValue([]);
+      const unlocked = AuthFactory.from().session({ hasElevatedPermission: true }).build();
+
+      await sut.getTimeBuckets(unlocked, { albumId: 'album-id' });
+
+      expect(mocks.asset.getTimeBuckets).toHaveBeenCalledWith(
+        expect.objectContaining({ albumId: 'album-id', excludeLockedAlbums: false }),
+      );
+    });
+
+    it('should hide assets shared with a locked album inside a normal album', async () => {
+      mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set(['album-id']));
+      mocks.asset.getTimeBuckets.mockResolvedValue([]);
+
+      await sut.getTimeBuckets(authStub.admin, { albumId: 'album-id' });
+
+      expect(mocks.asset.getTimeBuckets).toHaveBeenCalledWith(
+        expect.objectContaining({ albumId: 'album-id', excludeLockedAlbums: true }),
+      );
+    });
+
+    it('should require a PIN-unlocked session to read a locked album', async () => {
+      mocks.access.album.checkOwnerAccess.mockResolvedValue(new Set(['album-id']));
+      mocks.access.album.getLocked.mockResolvedValue(new Set(['album-id']));
+
+      await expect(sut.getTimeBuckets(authStub.admin, { albumId: 'album-id' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(mocks.asset.getTimeBuckets).not.toHaveBeenCalled();
+    });
+
+    it('should show locked-album assets in the trash only for a PIN-unlocked session', async () => {
+      mocks.asset.getTimeBuckets.mockResolvedValue([]);
+      const unlocked = AuthFactory.from().session({ hasElevatedPermission: true }).build();
+      const locked = AuthFactory.from().session().build();
+
+      await sut.getTimeBuckets(unlocked, { isTrashed: true });
+      await sut.getTimeBuckets(locked, { isTrashed: true });
+
+      expect(mocks.asset.getTimeBuckets).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ excludeLockedAlbums: false }),
+      );
+      expect(mocks.asset.getTimeBuckets).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ excludeLockedAlbums: true }),
+      );
     });
   });
 
@@ -59,6 +114,7 @@ describe(TimelineService.name, () => {
         {
           timeBucket: 'bucket',
           albumId: 'album-id',
+          excludeLockedAlbums: true,
         },
         authStub.admin,
       );
@@ -106,6 +162,7 @@ describe(TimelineService.name, () => {
           visibility: AssetVisibility.Timeline,
           withPartners: true,
           userIds: [authStub.admin.user.id],
+          excludeLockedAlbums: true,
         },
         authStub.admin,
       );
@@ -129,6 +186,7 @@ describe(TimelineService.name, () => {
           tagId: 'tag-123',
           timeBucket: 'bucket',
           userIds: [authStub.admin.user.id],
+          excludeLockedAlbums: true,
         },
         authStub.admin,
       );

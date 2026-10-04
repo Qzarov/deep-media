@@ -41,7 +41,19 @@ export class TimelineService extends BaseService {
       }
     }
 
-    return { ...options, userIds };
+    // Locked-album assets only show inside their own album, so a normal album also hides the ones it shares
+    // with a locked album. The trash is the exception for an unlocked session, so assets deleted from a
+    // locked album can still be restored.
+    const excludeLockedAlbums = dto.albumId
+      ? !(await this.isLockedAlbum(dto.albumId))
+      : !(dto.isTrashed && auth.session?.hasElevatedPermission);
+
+    return { ...options, userIds, excludeLockedAlbums };
+  }
+
+  private async isLockedAlbum(albumId: string) {
+    const locked = await this.accessRepository.album.getLocked(new Set([albumId]));
+    return locked.has(albumId);
   }
 
   private async timeBucketChecks(auth: AuthDto, dto: TimeBucketDto) {
