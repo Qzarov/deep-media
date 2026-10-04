@@ -190,6 +190,31 @@ docker compose -f ./docker/docker-compose.prod.yml up --build -d --remove-orphan
 docker compose -f ./docker/docker-compose.prod.yml logs -f immich-server
 ```
 
+### Обновление без полной сборки образа (патч-слой)
+
+На маленьком VPS (1 vCPU, ~2 ГБ RAM) полная сборка `server/Dockerfile` рядом с работающим продом упирается в память. Если зависимости (`package.json`, `pnpm-lock.yaml`) не менялись, можно собрать сервер и веб на другой машине и положить их слоем поверх текущего образа:
+
+```dockerfile
+FROM deep-media-server:<текущий-тег>
+RUN rm -rf /usr/src/app/server/dist /build/www
+COPY dist /usr/src/app/server/dist
+COPY www /build/www
+```
+
+> **Веб собирать только с `IMMICH_BUILD`.** В `web/svelte.config.js` версия задаётся как
+> `process.env.IMMICH_BUILD || Date.now()`, а конфиг читается за сборку дважды (клиентские чанки и `index.html`).
+> Без переменной получаются две разные метки: `index.html` объявляет `__sveltekit_<A>`, а чанки читают
+> `__sveltekit_<B>.env` — в браузере пустая страница и `Cannot read properties of undefined (reading 'env')`.
+> В Docker-сборке `IMMICH_BUILD` передаётся всегда, поэтому там проблема не видна.
+>
+> ```bash
+> IMMICH_BUILD=$(git rev-parse --short HEAD) pnpm --filter immich-web build
+> # проверка: должна быть ровно одна метка
+> grep -rhoE "__sveltekit_[a-z0-9]+" web/build | sort -u
+> ```
+
+Перед переключением прода: сделать `pg_dump`, сохранить старый образ отдельным тегом (`docker tag … :rollback-…`). После переключения открыть сайт в браузере (или headless) и проверить консоль — `curl` вернёт 200 даже для сломанного бандла. Откат после миграций — только вместе с восстановлением дампа: старый образ не стартует на базе с неизвестной ему миграцией.
+
 ## Бэкап и восстановление
 
 Минимальный backup должен включать:
@@ -233,7 +258,7 @@ IMMICH_TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
 
 После запуска проверьте:
 
-1. Открывается web UI на `http://host:2283`.
+1. Открывается web UI на `http://host:2283` — именно в браузере и без ошибок в консоли: HTTP 200 от `curl` не значит, что бандл рабочий.
 2. Первый вход/создание администратора доступен, если это новая установка.
 3. Загружается файл и появляется в ленте.
 4. Работает раздел `/folders`.
