@@ -1202,6 +1202,195 @@ export type FaceDto = {
     /** Face ID */
     id: string;
 };
+export type FolderRestrictionsDto = {
+    /** Block downloading assets */
+    noDownload?: boolean;
+    /** Block downloading RAW files */
+    noRawDownload?: boolean;
+};
+export type FolderUserResponseDto = {
+    /** Allow or deny */
+    effect: FolderEffect;
+    /** User email */
+    email: string;
+    /** User display name */
+    name: string;
+    /** User profile image path */
+    profileImagePath: string;
+    /** Access restrictions */
+    restrictions: FolderRestrictionsDto;
+    /** User role in folder */
+    role: FolderUserRole;
+    /** User ID */
+    userId: string;
+    /** Access valid from */
+    validFrom: string | null;
+    /** Access valid until */
+    validUntil: string | null;
+};
+export type FolderResponseDto = {
+    /** Number of assets in this folder */
+    assetCount: number;
+    /** Creation date */
+    createdAt: string;
+    /** Folder description */
+    description: string;
+    /** Users with access to this folder */
+    folderUsers: FolderUserResponseDto[];
+    /** Whether folder has subfolders */
+    hasChildren: boolean;
+    /** Folder ID */
+    id: string;
+    /** Folder name */
+    name: string;
+    /** Owner user ID */
+    ownerId: string;
+    /** Parent folder ID */
+    parentId: string | null;
+    /** Whether folder is shared with other users */
+    shared: boolean;
+    /** Last update date */
+    updatedAt: string;
+};
+export type FolderCreateDto = {
+    /** Folder description */
+    description?: string;
+    /** Folder name */
+    name: string;
+    /** Parent folder ID */
+    parentId?: string | null;
+};
+export type FolderUpdateDto = {
+    /** Folder description */
+    description?: string;
+    /** Folder name */
+    name?: string;
+};
+export type FolderAccessMatrixEntryDto = {
+    /** Allow or deny */
+    effect: FolderEffect;
+    /** Effective role */
+    effectiveRole: (FolderUserRole) | null;
+    /** User email */
+    email: string;
+    /** Source folder if inherited */
+    inheritedFrom: {
+        folderId: string;
+        name: string;
+    } | null;
+    /** Whether inherited from parent */
+    isInherited: boolean;
+    /** User display name */
+    name: string;
+    /** User profile image path */
+    profileImagePath: string;
+    /** Effective restrictions */
+    restrictions: FolderRestrictionsDto;
+    /** User ID */
+    userId: string;
+    /** Access valid from */
+    validFrom: string | null;
+    /** Access valid until */
+    validUntil: string | null;
+};
+export type FolderAccessMatrixDto = {
+    /** All users with access */
+    entries: FolderAccessMatrixEntryDto[];
+    /** Folder ID */
+    folderId: string;
+};
+export type FolderBulkAssetsDto = {
+    /** Asset IDs to add to folder */
+    assetIds: string[];
+};
+export type AuditLogDto = {
+    action: AuditLogAction;
+    /** Actor email */
+    actorEmail: string | null;
+    /** User ID that performed the action */
+    actorId: string | null;
+    /** Actor display name */
+    actorName: string | null;
+    /** Creation date */
+    createdAt: string;
+    /** Folder ID */
+    folderId: string;
+    /** Audit log ID */
+    id: string;
+    /** Request IP address */
+    ipAddress: string | null;
+    /** Action metadata */
+    metadata: {
+        [key: string]: any;
+    };
+    /** Resource ID */
+    resourceId: string;
+    resourceType: AuditLogResourceType;
+    /** Target user ID for ACL changes */
+    targetUserId: string | null;
+    /** Request user agent */
+    userAgent: string | null;
+};
+export type FolderMoveDto = {
+    /** New parent folder ID, null for root */
+    parentId: string | null;
+};
+export type FolderEffectivePermissionsDto = {
+    /** Allow or deny */
+    effect: FolderEffect;
+    /** Folder ID */
+    folderId: string;
+    /** Source folder if inherited */
+    inheritedFrom: {
+        folderId: string;
+        name: string;
+    } | null;
+    /** Whether permission is inherited from parent */
+    isInherited: boolean;
+    /** Resolved operation flags */
+    operations: {
+        canAdmin: boolean;
+        canDelete: boolean;
+        canDownload: boolean;
+        canEdit: boolean;
+        canUpload: boolean;
+        canView: boolean;
+    };
+    /** Effective restrictions */
+    restrictions: FolderRestrictionsDto;
+    /** Effective role */
+    role: (FolderUserRole) | null;
+};
+export type UpdateFolderUserDto = {
+    /** Allow or deny access */
+    effect?: FolderEffect;
+    /** Access restrictions */
+    restrictions?: FolderRestrictionsDto;
+    /** New role for the user */
+    role?: FolderUserRole;
+    /** Access valid from */
+    validFrom?: string | null;
+    /** Access valid until */
+    validUntil?: string | null;
+};
+export type FolderUserAddDto = {
+    /** Allow or deny access */
+    effect?: FolderEffect;
+    /** Access restrictions */
+    restrictions?: FolderRestrictionsDto;
+    /** Role for the user */
+    role?: FolderUserRole;
+    /** User ID to share with */
+    userId: string;
+    /** Access valid from */
+    validFrom?: string | null;
+    /** Access valid until */
+    validUntil?: string | null;
+};
+export type AddFolderUsersDto = {
+    /** Users to add to the folder */
+    folderUsers: FolderUserAddDto[];
+};
 export type QueueStatisticsDto = {
     /** Number of active jobs */
     active: number;
@@ -2211,6 +2400,10 @@ export type SharedLinkResponseDto = {
     "type": SharedLinkType;
     /** Owner user ID */
     userId: string;
+    /** Number of times this link has been viewed */
+    viewCount: number;
+    /** Maximum number of visits (null for unlimited) */
+    visitLimit: number | null;
 };
 export type SharedLinkCreateDto = {
     /** Album ID (for album sharing) */
@@ -2232,6 +2425,8 @@ export type SharedLinkCreateDto = {
     /** Custom URL slug */
     slug?: string | null;
     "type": SharedLinkType;
+    /** Maximum number of visits (null for unlimited) */
+    visitLimit?: number | null;
 };
 export type SharedLinkLoginDto = {
     /** Shared link password */
@@ -2254,6 +2449,8 @@ export type SharedLinkEditDto = {
     showMetadata?: boolean;
     /** Custom URL slug */
     slug?: string | null;
+    /** Maximum number of visits (null for unlimited) */
+    visitLimit?: number | null;
 };
 export type AssetIdsDto = {
     /** Asset IDs */
@@ -4548,6 +4745,250 @@ export function reassignFacesById({ id, faceDto }: {
         ...opts,
         method: "PUT",
         body: faceDto
+    })));
+}
+/**
+ * Get root folders
+ */
+export function getRootFolders(opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: FolderResponseDto[];
+    }>("/folders", {
+        ...opts
+    }));
+}
+/**
+ * Create a folder
+ */
+export function createFolder({ folderCreateDto }: {
+    folderCreateDto: FolderCreateDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 201;
+        data: FolderResponseDto;
+    }>("/folders", oazapfts.json({
+        ...opts,
+        method: "POST",
+        body: folderCreateDto
+    })));
+}
+/**
+ * Delete a folder
+ */
+export function deleteFolder({ id }: {
+    id: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchText(`/folders/${encodeURIComponent(id)}`, {
+        ...opts,
+        method: "DELETE"
+    }));
+}
+/**
+ * Get folder
+ */
+export function getFolder({ id }: {
+    id: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: FolderResponseDto;
+    }>(`/folders/${encodeURIComponent(id)}`, {
+        ...opts
+    }));
+}
+/**
+ * Update a folder
+ */
+export function updateFolder({ id, folderUpdateDto }: {
+    id: string;
+    folderUpdateDto: FolderUpdateDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: FolderResponseDto;
+    }>(`/folders/${encodeURIComponent(id)}`, oazapfts.json({
+        ...opts,
+        method: "PUT",
+        body: folderUpdateDto
+    })));
+}
+/**
+ * Get access matrix
+ */
+export function getAccessMatrix({ id }: {
+    id: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: FolderAccessMatrixDto;
+    }>(`/folders/${encodeURIComponent(id)}/access-matrix`, {
+        ...opts
+    }));
+}
+/**
+ * Remove assets from folder
+ */
+export function removeAssets({ id, bulkIdsDto }: {
+    id: string;
+    bulkIdsDto: BulkIdsDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: BulkIdResponseDto[];
+    }>(`/folders/${encodeURIComponent(id)}/assets`, oazapfts.json({
+        ...opts,
+        method: "DELETE",
+        body: bulkIdsDto
+    })));
+}
+/**
+ * Get folder assets
+ */
+export function getAssets({ id }: {
+    id: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: AssetResponseDto[];
+    }>(`/folders/${encodeURIComponent(id)}/assets`, {
+        ...opts
+    }));
+}
+/**
+ * Add assets to folder
+ */
+export function addAssets({ id, folderBulkAssetsDto }: {
+    id: string;
+    folderBulkAssetsDto: FolderBulkAssetsDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: BulkIdResponseDto[];
+    }>(`/folders/${encodeURIComponent(id)}/assets`, oazapfts.json({
+        ...opts,
+        method: "PUT",
+        body: folderBulkAssetsDto
+    })));
+}
+/**
+ * Get folder audit log
+ */
+export function getAuditLog({ action, actorId, $from, id, limit, targetUserId, to }: {
+    action?: AuditLogAction;
+    actorId?: string;
+    $from?: string;
+    id: string;
+    limit?: number;
+    targetUserId?: string;
+    to?: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: AuditLogDto[];
+    }>(`/folders/${encodeURIComponent(id)}/audit-log${QS.query(QS.explode({
+        action,
+        actorId,
+        "from": $from,
+        limit,
+        targetUserId,
+        to
+    }))}`, {
+        ...opts
+    }));
+}
+/**
+ * Get folder breadcrumbs
+ */
+export function getBreadcrumbs({ id }: {
+    id: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchText(`/folders/${encodeURIComponent(id)}/breadcrumbs`, {
+        ...opts
+    }));
+}
+/**
+ * Get child folders
+ */
+export function getChildren({ id }: {
+    id: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: FolderResponseDto[];
+    }>(`/folders/${encodeURIComponent(id)}/children`, {
+        ...opts
+    }));
+}
+/**
+ * Move a folder
+ */
+export function moveFolder({ id, folderMoveDto }: {
+    id: string;
+    folderMoveDto: FolderMoveDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: FolderResponseDto;
+    }>(`/folders/${encodeURIComponent(id)}/move`, oazapfts.json({
+        ...opts,
+        method: "PUT",
+        body: folderMoveDto
+    })));
+}
+/**
+ * Get effective permissions
+ */
+export function getEffectivePermissions({ id }: {
+    id: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: FolderEffectivePermissionsDto;
+    }>(`/folders/${encodeURIComponent(id)}/permissions`, {
+        ...opts
+    }));
+}
+/**
+ * Remove user from folder
+ */
+export function removeUser({ id, userId }: {
+    id: string;
+    userId: string;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchText(`/folders/${encodeURIComponent(id)}/user/${encodeURIComponent(userId)}`, {
+        ...opts,
+        method: "DELETE"
+    }));
+}
+/**
+ * Update user role in folder
+ */
+export function updateUser({ id, userId, updateFolderUserDto }: {
+    id: string;
+    userId: string;
+    updateFolderUserDto: UpdateFolderUserDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchText(`/folders/${encodeURIComponent(id)}/user/${encodeURIComponent(userId)}`, oazapfts.json({
+        ...opts,
+        method: "PUT",
+        body: updateFolderUserDto
+    })));
+}
+/**
+ * Share folder with users
+ */
+export function addUsers({ id, addFolderUsersDto }: {
+    id: string;
+    addFolderUsersDto: AddFolderUsersDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: FolderResponseDto;
+    }>(`/folders/${encodeURIComponent(id)}/users`, oazapfts.json({
+        ...opts,
+        method: "PUT",
+        body: addFolderUsersDto
     })));
 }
 /**
@@ -6849,7 +7290,16 @@ export enum Permission {
     FaceRead = "face.read",
     FaceUpdate = "face.update",
     FaceDelete = "face.delete",
+    FolderCreate = "folder.create",
     FolderRead = "folder.read",
+    FolderUpdate = "folder.update",
+    FolderDelete = "folder.delete",
+    FolderShare = "folder.share",
+    FolderDownload = "folder.download",
+    FolderUpload = "folder.upload",
+    FolderUserCreate = "folderUser.create",
+    FolderUserUpdate = "folderUser.update",
+    FolderUserDelete = "folderUser.delete",
     JobCreate = "job.create",
     JobRead = "job.read",
     LibraryCreate = "library.create",
@@ -7000,6 +7450,32 @@ export enum AssetMediaSize {
     Fullsize = "fullsize",
     Preview = "preview",
     Thumbnail = "thumbnail"
+}
+export enum FolderEffect {
+    Allow = "allow",
+    Deny = "deny"
+}
+export enum FolderUserRole {
+    Owner = "owner",
+    Administrator = "administrator",
+    Editor = "editor",
+    Contributor = "contributor",
+    ViewerDownload = "viewer_download",
+    Viewer = "viewer"
+}
+export enum AuditLogAction {
+    FolderCreate = "folder.create",
+    FolderUpdate = "folder.update",
+    FolderMove = "folder.move",
+    FolderDelete = "folder.delete",
+    FolderShare = "folder.share",
+    FolderUserUpdate = "folder.user.update",
+    FolderUserRemove = "folder.user.remove",
+    FolderAssetsAdd = "folder.assets.add",
+    FolderAssetsRemove = "folder.assets.remove"
+}
+export enum AuditLogResourceType {
+    Folder = "folder"
 }
 export enum ManualJobName {
     PersonCleanup = "person-cleanup",

@@ -5473,6 +5473,999 @@
         "x-immich-state": "Stable"
       }
     },
+    "/folders": {
+      "get": {
+        "description": "Retrieve all root-level folders for the authenticated user.",
+        "operationId": "getRootFolders",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FolderResponseDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get root folders",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.read"
+      },
+      "post": {
+        "description": "Create a new folder with optional parent for nested hierarchy.",
+        "operationId": "createFolder",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderCreateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Create a folder",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.create"
+      }
+    },
+    "/folders/{id}": {
+      "delete": {
+        "description": "Soft-delete a folder and all its subfolders. Only owner can delete.",
+        "operationId": "deleteFolder",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Delete a folder",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.delete"
+      },
+      "get": {
+        "description": "Retrieve a specific folder by its ID, including sharing information.",
+        "operationId": "getFolder",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get folder",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.read"
+      },
+      "put": {
+        "description": "Update folder name or description.",
+        "operationId": "updateFolder",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderUpdateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Update a folder",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.update"
+      }
+    },
+    "/folders/{id}/access-matrix": {
+      "get": {
+        "description": "Get all users with access to this folder and their effective permissions. Requires administrator access.",
+        "operationId": "getAccessMatrix",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderAccessMatrixDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get access matrix",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.share"
+      }
+    },
+    "/folders/{id}/assets": {
+      "delete": {
+        "description": "Remove multiple assets from a folder. Requires editor access or higher.",
+        "operationId": "removeAssets",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkIdsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BulkIdResponseDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Remove assets from folder",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.update"
+      },
+      "get": {
+        "description": "Retrieve all assets in a folder.",
+        "operationId": "getAssets",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AssetResponseDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get folder assets",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.read"
+      },
+      "put": {
+        "description": "Add multiple assets to a folder. Requires editor access or higher.",
+        "operationId": "addAssets",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderBulkAssetsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BulkIdResponseDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Add assets to folder",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.update"
+      }
+    },
+    "/folders/{id}/audit-log": {
+      "get": {
+        "description": "Get audit events for a folder. Requires administrator access.",
+        "operationId": "getAuditLog",
+        "parameters": [
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Filter by action",
+            "schema": {
+              "$ref": "#/components/schemas/AuditLogAction"
+            }
+          },
+          {
+            "name": "actorId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by actor user ID",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Filter by creation date from",
+            "schema": {
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+              "example": "2024-01-01T00:00:00.000Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Maximum number of rows",
+            "schema": {
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "targetUserId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by target user ID",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Filter by creation date to",
+            "schema": {
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+              "example": "2024-01-01T00:00:00.000Z",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditLogDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get folder audit log",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.share"
+      }
+    },
+    "/folders/{id}/breadcrumbs": {
+      "get": {
+        "description": "Retrieve the ancestor chain from root to this folder.",
+        "operationId": "getBreadcrumbs",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get folder breadcrumbs",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.read"
+      }
+    },
+    "/folders/{id}/children": {
+      "get": {
+        "description": "Retrieve all direct child folders of a specific folder.",
+        "operationId": "getChildren",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FolderResponseDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get child folders",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.read"
+      }
+    },
+    "/folders/{id}/move": {
+      "put": {
+        "description": "Move a folder to a new parent, or to root (parentId: null).",
+        "operationId": "moveFolder",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderMoveDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Move a folder",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.update"
+      }
+    },
+    "/folders/{id}/permissions": {
+      "get": {
+        "description": "Get the effective ACL permissions for the current user on this folder, resolving inheritance.",
+        "operationId": "getEffectivePermissions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderEffectivePermissionsDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Get effective permissions",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folder.read"
+      }
+    },
+    "/folders/{id}/user/{userId}": {
+      "delete": {
+        "description": "Remove a user from a folder, or leave the folder yourself.",
+        "operationId": "removeUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Remove user from folder",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folderUser.delete"
+      },
+      "put": {
+        "description": "Change the role of a user in a folder.",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFolderUserDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Update user role in folder",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folderUser.update"
+      }
+    },
+    "/folders/{id}/users": {
+      "put": {
+        "description": "Add users to a folder with specified roles. Permissions inherit to subfolders.",
+        "operationId": "addUsers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddFolderUsersDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Share folder with users",
+        "tags": [
+          "Folders"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2",
+            "state": "Added"
+          }
+        ],
+        "x-immich-permission": "folderUser.create"
+      }
+    },
     "/jobs": {
       "get": {
         "deprecated": true,
@@ -15018,6 +16011,10 @@
       "description": "A face is a detected human face within an asset, which can be associated with a person. Faces are normally detected via machine learning, but can also be created via manually."
     },
     {
+      "name": "Folders",
+      "description": "A folder is a hierarchical container for organizing assets. Folders support nesting, and assets can belong to both folders and albums."
+    },
+    {
       "name": "Jobs",
       "description": "Queues and background jobs are used for processing tasks asynchronously. Queues can be paused and resumed as needed."
     },
@@ -15237,6 +16234,22 @@
         "required": [
           "comments",
           "likes"
+        ],
+        "type": "object"
+      },
+      "AddFolderUsersDto": {
+        "properties": {
+          "folderUsers": {
+            "description": "Users to add to the folder",
+            "items": {
+              "$ref": "#/components/schemas/FolderUserAddDto"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "folderUsers"
         ],
         "type": "object"
       },
@@ -16931,6 +17944,108 @@
         ],
         "type": "string"
       },
+      "AuditLogAction": {
+        "description": "Audit log action",
+        "enum": [
+          "folder.create",
+          "folder.update",
+          "folder.move",
+          "folder.delete",
+          "folder.share",
+          "folder.user.update",
+          "folder.user.remove",
+          "folder.assets.add",
+          "folder.assets.remove"
+        ],
+        "type": "string"
+      },
+      "AuditLogDto": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/AuditLogAction"
+          },
+          "actorEmail": {
+            "description": "Actor email",
+            "nullable": true,
+            "type": "string"
+          },
+          "actorId": {
+            "description": "User ID that performed the action",
+            "nullable": true,
+            "type": "string"
+          },
+          "actorName": {
+            "description": "Actor display name",
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "description": "Creation date",
+            "example": "2024-01-01T00:00:00.000Z",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "folderId": {
+            "description": "Folder ID",
+            "type": "string"
+          },
+          "id": {
+            "description": "Audit log ID",
+            "type": "string"
+          },
+          "ipAddress": {
+            "description": "Request IP address",
+            "nullable": true,
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": {},
+            "description": "Action metadata",
+            "type": "object"
+          },
+          "resourceId": {
+            "description": "Resource ID",
+            "type": "string"
+          },
+          "resourceType": {
+            "$ref": "#/components/schemas/AuditLogResourceType"
+          },
+          "targetUserId": {
+            "description": "Target user ID for ACL changes",
+            "nullable": true,
+            "type": "string"
+          },
+          "userAgent": {
+            "description": "Request user agent",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "actorEmail",
+          "actorId",
+          "actorName",
+          "createdAt",
+          "folderId",
+          "id",
+          "ipAddress",
+          "metadata",
+          "resourceId",
+          "resourceType",
+          "targetUserId",
+          "userAgent"
+        ],
+        "type": "object"
+      },
+      "AuditLogResourceType": {
+        "description": "Audit log resource type",
+        "enum": [
+          "folder"
+        ],
+        "type": "string"
+      },
       "AuthStatusResponseDto": {
         "properties": {
           "expiresAt": {
@@ -17820,6 +18935,467 @@
           "modelName"
         ],
         "type": "object"
+      },
+      "FolderAccessMatrixDto": {
+        "properties": {
+          "entries": {
+            "description": "All users with access",
+            "items": {
+              "$ref": "#/components/schemas/FolderAccessMatrixEntryDto"
+            },
+            "type": "array"
+          },
+          "folderId": {
+            "description": "Folder ID",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entries",
+          "folderId"
+        ],
+        "type": "object"
+      },
+      "FolderAccessMatrixEntryDto": {
+        "properties": {
+          "effect": {
+            "$ref": "#/components/schemas/FolderEffect",
+            "description": "Allow or deny"
+          },
+          "effectiveRole": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FolderUserRole"
+              }
+            ],
+            "description": "Effective role",
+            "nullable": true
+          },
+          "email": {
+            "description": "User email",
+            "type": "string"
+          },
+          "inheritedFrom": {
+            "description": "Source folder if inherited",
+            "nullable": true,
+            "properties": {
+              "folderId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "folderId",
+              "name"
+            ],
+            "type": "object"
+          },
+          "isInherited": {
+            "description": "Whether inherited from parent",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "User display name",
+            "type": "string"
+          },
+          "profileImagePath": {
+            "description": "User profile image path",
+            "type": "string"
+          },
+          "restrictions": {
+            "$ref": "#/components/schemas/FolderRestrictionsDto",
+            "description": "Effective restrictions"
+          },
+          "userId": {
+            "description": "User ID",
+            "type": "string"
+          },
+          "validFrom": {
+            "description": "Access valid from",
+            "nullable": true,
+            "type": "string"
+          },
+          "validUntil": {
+            "description": "Access valid until",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "effect",
+          "effectiveRole",
+          "email",
+          "inheritedFrom",
+          "isInherited",
+          "name",
+          "profileImagePath",
+          "restrictions",
+          "userId",
+          "validFrom",
+          "validUntil"
+        ],
+        "type": "object"
+      },
+      "FolderBulkAssetsDto": {
+        "properties": {
+          "assetIds": {
+            "description": "Asset IDs to add to folder",
+            "items": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "assetIds"
+        ],
+        "type": "object"
+      },
+      "FolderCreateDto": {
+        "properties": {
+          "description": {
+            "description": "Folder description",
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "name": {
+            "description": "Folder name",
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parentId": {
+            "description": "Parent folder ID",
+            "format": "uuid",
+            "nullable": true,
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "FolderEffect": {
+        "description": "Folder ACL effect",
+        "enum": [
+          "allow",
+          "deny"
+        ],
+        "type": "string"
+      },
+      "FolderEffectivePermissionsDto": {
+        "properties": {
+          "effect": {
+            "$ref": "#/components/schemas/FolderEffect",
+            "description": "Allow or deny"
+          },
+          "folderId": {
+            "description": "Folder ID",
+            "type": "string"
+          },
+          "inheritedFrom": {
+            "description": "Source folder if inherited",
+            "nullable": true,
+            "properties": {
+              "folderId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "folderId",
+              "name"
+            ],
+            "type": "object"
+          },
+          "isInherited": {
+            "description": "Whether permission is inherited from parent",
+            "type": "boolean"
+          },
+          "operations": {
+            "description": "Resolved operation flags",
+            "properties": {
+              "canAdmin": {
+                "type": "boolean"
+              },
+              "canDelete": {
+                "type": "boolean"
+              },
+              "canDownload": {
+                "type": "boolean"
+              },
+              "canEdit": {
+                "type": "boolean"
+              },
+              "canUpload": {
+                "type": "boolean"
+              },
+              "canView": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "canView",
+              "canDownload",
+              "canUpload",
+              "canEdit",
+              "canAdmin",
+              "canDelete"
+            ],
+            "type": "object"
+          },
+          "restrictions": {
+            "$ref": "#/components/schemas/FolderRestrictionsDto",
+            "description": "Effective restrictions"
+          },
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FolderUserRole"
+              }
+            ],
+            "description": "Effective role",
+            "nullable": true
+          }
+        },
+        "required": [
+          "effect",
+          "folderId",
+          "inheritedFrom",
+          "isInherited",
+          "operations",
+          "restrictions",
+          "role"
+        ],
+        "type": "object"
+      },
+      "FolderMoveDto": {
+        "properties": {
+          "parentId": {
+            "description": "New parent folder ID, null for root",
+            "format": "uuid",
+            "nullable": true,
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "parentId"
+        ],
+        "type": "object"
+      },
+      "FolderResponseDto": {
+        "properties": {
+          "assetCount": {
+            "description": "Number of assets in this folder",
+            "type": "number"
+          },
+          "createdAt": {
+            "description": "Creation date",
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "description": "Folder description",
+            "type": "string"
+          },
+          "folderUsers": {
+            "description": "Users with access to this folder",
+            "items": {
+              "$ref": "#/components/schemas/FolderUserResponseDto"
+            },
+            "type": "array"
+          },
+          "hasChildren": {
+            "description": "Whether folder has subfolders",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Folder ID",
+            "type": "string"
+          },
+          "name": {
+            "description": "Folder name",
+            "type": "string"
+          },
+          "ownerId": {
+            "description": "Owner user ID",
+            "type": "string"
+          },
+          "parentId": {
+            "description": "Parent folder ID",
+            "nullable": true,
+            "type": "string"
+          },
+          "shared": {
+            "description": "Whether folder is shared with other users",
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "description": "Last update date",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assetCount",
+          "createdAt",
+          "description",
+          "folderUsers",
+          "hasChildren",
+          "id",
+          "name",
+          "ownerId",
+          "parentId",
+          "shared",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "FolderRestrictionsDto": {
+        "properties": {
+          "noDownload": {
+            "description": "Block downloading assets",
+            "type": "boolean"
+          },
+          "noRawDownload": {
+            "description": "Block downloading RAW files",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "FolderUpdateDto": {
+        "properties": {
+          "description": {
+            "description": "Folder description",
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "name": {
+            "description": "Folder name",
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FolderUserAddDto": {
+        "properties": {
+          "effect": {
+            "$ref": "#/components/schemas/FolderEffect",
+            "default": "allow",
+            "description": "Allow or deny access"
+          },
+          "restrictions": {
+            "$ref": "#/components/schemas/FolderRestrictionsDto",
+            "description": "Access restrictions"
+          },
+          "role": {
+            "$ref": "#/components/schemas/FolderUserRole",
+            "default": "editor",
+            "description": "Role for the user"
+          },
+          "userId": {
+            "description": "User ID to share with",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
+          },
+          "validFrom": {
+            "description": "Access valid from",
+            "format": "date-time",
+            "nullable": true,
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "validUntil": {
+            "description": "Access valid until",
+            "format": "date-time",
+            "nullable": true,
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "type": "object"
+      },
+      "FolderUserResponseDto": {
+        "properties": {
+          "effect": {
+            "$ref": "#/components/schemas/FolderEffect",
+            "description": "Allow or deny"
+          },
+          "email": {
+            "description": "User email",
+            "type": "string"
+          },
+          "name": {
+            "description": "User display name",
+            "type": "string"
+          },
+          "profileImagePath": {
+            "description": "User profile image path",
+            "type": "string"
+          },
+          "restrictions": {
+            "$ref": "#/components/schemas/FolderRestrictionsDto",
+            "description": "Access restrictions"
+          },
+          "role": {
+            "$ref": "#/components/schemas/FolderUserRole",
+            "description": "User role in folder"
+          },
+          "userId": {
+            "description": "User ID",
+            "type": "string"
+          },
+          "validFrom": {
+            "description": "Access valid from",
+            "nullable": true,
+            "type": "string"
+          },
+          "validUntil": {
+            "description": "Access valid until",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "effect",
+          "email",
+          "name",
+          "profileImagePath",
+          "restrictions",
+          "role",
+          "userId",
+          "validFrom",
+          "validUntil"
+        ],
+        "type": "object"
+      },
+      "FolderUserRole": {
+        "description": "Folder user role",
+        "enum": [
+          "owner",
+          "administrator",
+          "editor",
+          "contributor",
+          "viewer_download",
+          "viewer"
+        ],
+        "type": "string"
       },
       "FoldersResponse": {
         "properties": {
@@ -19495,7 +21071,16 @@
           "face.read",
           "face.update",
           "face.delete",
+          "folder.create",
           "folder.read",
+          "folder.update",
+          "folder.delete",
+          "folder.share",
+          "folder.download",
+          "folder.upload",
+          "folderUser.create",
+          "folderUser.update",
+          "folderUser.delete",
           "job.create",
           "job.read",
           "library.create",
@@ -21688,6 +23273,13 @@
           },
           "type": {
             "$ref": "#/components/schemas/SharedLinkType"
+          },
+          "visitLimit": {
+            "description": "Maximum number of visits (null for unlimited)",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "nullable": true,
+            "type": "integer"
           }
         },
         "required": [
@@ -21735,6 +23327,13 @@
             "description": "Custom URL slug",
             "nullable": true,
             "type": "string"
+          },
+          "visitLimit": {
+            "description": "Maximum number of visits (null for unlimited)",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "nullable": true,
+            "type": "integer"
           }
         },
         "type": "object"
@@ -21820,6 +23419,15 @@
           "userId": {
             "description": "Owner user ID",
             "type": "string"
+          },
+          "viewCount": {
+            "description": "Number of times this link has been viewed",
+            "type": "number"
+          },
+          "visitLimit": {
+            "description": "Maximum number of visits (null for unlimited)",
+            "nullable": true,
+            "type": "number"
           }
         },
         "required": [
@@ -21835,7 +23443,9 @@
           "showMetadata",
           "slug",
           "type",
-          "userId"
+          "userId",
+          "viewCount",
+          "visitLimit"
         ],
         "type": "object"
       },
@@ -25454,6 +27064,37 @@
           },
           "visibility": {
             "$ref": "#/components/schemas/AssetVisibility"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateFolderUserDto": {
+        "properties": {
+          "effect": {
+            "$ref": "#/components/schemas/FolderEffect",
+            "description": "Allow or deny access"
+          },
+          "restrictions": {
+            "$ref": "#/components/schemas/FolderRestrictionsDto",
+            "description": "Access restrictions"
+          },
+          "role": {
+            "$ref": "#/components/schemas/FolderUserRole",
+            "description": "New role for the user"
+          },
+          "validFrom": {
+            "description": "Access valid from",
+            "format": "date-time",
+            "nullable": true,
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
+          },
+          "validUntil": {
+            "description": "Access valid until",
+            "format": "date-time",
+            "nullable": true,
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+            "type": "string"
           }
         },
         "type": "object"
