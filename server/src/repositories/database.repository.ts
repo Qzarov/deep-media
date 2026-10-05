@@ -274,6 +274,9 @@ export class DatabaseRepository {
       columns: { ignoreExtra: true },
       functions: { ignoreExtra: false },
       parameters: { ignoreExtra: true },
+      // The vector extension (vector / vchord) is set up at runtime from DB_VECTOR_EXTENSION, not declared
+      // in the schema, so it would always be reported as an extra extension.
+      extensions: { ignoreExtra: true },
     });
 
     return drift;

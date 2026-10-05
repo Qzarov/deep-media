@@ -4,7 +4,6 @@ import {
   AssetStatus,
   AssetVisibility,
   ChecksumAlgorithm,
-  FolderUserRole,
   SourceType,
   VideoSegmentCodec,
 } from 'src/enum';
@@ -12,11 +11,6 @@ import {
 export const album_user_role_enum = registerEnum({
   name: 'album_user_role_enum',
   values: [AlbumUserRole.Owner, AlbumUserRole.Editor, AlbumUserRole.Viewer],
-});
-
-export const folder_user_role_enum = registerEnum({
-  name: 'folder_user_role_enum',
-  values: Object.values(FolderUserRole),
 });
 
 export const assets_status_enum = registerEnum({

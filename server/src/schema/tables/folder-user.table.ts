@@ -10,7 +10,6 @@ import {
 } from '@immich/sql-tools';
 import { UpdatedAtTrigger, UpdateIdColumn } from 'src/decorators';
 import { FolderEffect, FolderUserRole } from 'src/enum';
-import { folder_user_role_enum } from 'src/schema/enums';
 import { FolderTable } from 'src/schema/tables/folder.table';
 import { UserTable } from 'src/schema/tables/user.table';
 
@@ -39,19 +38,19 @@ export class FolderUserTable {
   })
   userId!: string;
 
-  @Column({ enum: folder_user_role_enum, default: FolderUserRole.Editor })
+  @Column({ type: 'character varying', default: FolderUserRole.Editor })
   role!: Generated<FolderUserRole>;
 
   @Column({ type: 'character varying', default: FolderEffect.Allow })
   effect!: Generated<FolderEffect>;
 
-  @Column({ type: 'jsonb', default: "'{}'" })
+  @Column({ type: 'jsonb', default: '{}' })
   restrictions!: Generated<string>;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamp with time zone', nullable: true })
   validFrom!: Timestamp | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamp with time zone', nullable: true })
   validUntil!: Timestamp | null;
 
   @CreateDateColumn()

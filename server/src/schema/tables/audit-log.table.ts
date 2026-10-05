@@ -1,18 +1,11 @@
-import {
-  Column,
-  CreateDateColumn,
-  ForeignKeyColumn,
-  Generated,
-  PrimaryGeneratedColumn,
-  Table,
-  Timestamp,
-} from '@immich/sql-tools';
+import { Column, CreateDateColumn, ForeignKeyColumn, Generated, Table, Timestamp } from '@immich/sql-tools';
+import { PrimaryGeneratedUuidV7Column } from 'src/decorators';
 import { AuditLogAction, AuditLogResourceType } from 'src/enum';
 import { UserTable } from 'src/schema/tables/user.table';
 
 @Table('audit_log')
 export class AuditLogTable {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedUuidV7Column()
   id!: Generated<string>;
 
   @CreateDateColumn()
@@ -36,7 +29,7 @@ export class AuditLogTable {
   @ForeignKeyColumn(() => UserTable, { onDelete: 'SET NULL', onUpdate: 'CASCADE', nullable: true })
   targetUserId!: string | null;
 
-  @Column({ type: 'jsonb', default: "'{}'" })
+  @Column({ type: 'jsonb', default: '{}' })
   metadata!: Generated<Record<string, unknown>>;
 
   @Column({ type: 'text', nullable: true })
