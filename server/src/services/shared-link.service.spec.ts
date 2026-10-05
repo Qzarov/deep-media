@@ -18,6 +18,7 @@ describe(SharedLinkService.name, () => {
 
   beforeEach(() => {
     ({ sut, mocks } = newTestService(SharedLinkService));
+    mocks.sharedLink.incrementViewCount.mockResolvedValue();
   });
 
   it('should work', () => {
@@ -51,6 +52,14 @@ describe(SharedLinkService.name, () => {
         mapSharedLink(getForSharedLink(sharedLink), { stripAssetMetadata: false }),
       );
       expect(mocks.sharedLink.get).toHaveBeenCalledWith(authDto.user.id, authDto.sharedLink?.id);
+      expect(mocks.sharedLink.incrementViewCount).toHaveBeenCalledWith(sharedLink.id);
+    });
+
+    it('should not count a view when the password is missing', async () => {
+      const authDto = authStub.adminSharedLink;
+      mocks.sharedLink.get.mockResolvedValue(sharedLinkStub.passwordRequired);
+      await expect(sut.getMine(authDto, [])).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(mocks.sharedLink.incrementViewCount).not.toHaveBeenCalled();
     });
 
     it('should not return metadata', async () => {
@@ -158,6 +167,7 @@ describe(SharedLinkService.name, () => {
         slug: null,
         showExif: true,
         key: Buffer.from('random-bytes', 'utf8'),
+        visitLimit: null,
       });
     });
 
@@ -194,6 +204,7 @@ describe(SharedLinkService.name, () => {
         expiresAt: null,
         showExif: true,
         key: Buffer.from('random-bytes', 'utf8'),
+        visitLimit: null,
       });
     });
 
@@ -230,6 +241,7 @@ describe(SharedLinkService.name, () => {
         showExif: false,
         slug: null,
         key: Buffer.from('random-bytes', 'utf8'),
+        visitLimit: null,
       });
     });
   });
