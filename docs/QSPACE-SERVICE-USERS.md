@@ -83,5 +83,5 @@ to Immich.
 ## 3. Running without the web client
 
 With `IMMICH_DISABLE_WEB=true`, the server does not register the static file handler for the web build or the
-SSR fallback that returns `index.html` for non-API paths. Other paths return Nest's 404. `/api/*` and
+SSR fallback that returns `index.html` for non-API paths. `/api/*` and
 `/.well-known/immich` keep working. Without the variable, the web client is served as before.
