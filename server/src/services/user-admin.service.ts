@@ -27,7 +27,18 @@ export class UserAdminService extends BaseService {
     return users.map((user) => mapUserAdmin(user));
   }
 
-  async create(dto: UserAdminCreateDto): Promise<UserAdminResponseDto> {
+  async create(auth: AuthDto, dto: UserAdminCreateDto): Promise<UserAdminResponseDto> {
+    if (dto.id && !auth.qspaceService) {
+      throw new BadRequestException('id can only be set by the Q Space service');
+    }
+
+    if (dto.id) {
+      const existing = await this.userRepository.get(dto.id, { withDeleted: true });
+      if (existing) {
+        throw new BadRequestException('User id is not available');
+      }
+    }
+
     const { notify, ...userDto } = dto;
     const config = await this.getConfig({ withCache: false });
     if (!config.oauth.enabled && !userDto.password) {

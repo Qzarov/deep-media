@@ -23,6 +23,7 @@ export enum ImmichHeader {
   SharedLinkSlug = 'x-immich-share-slug',
   Checksum = 'x-immich-checksum',
   CorrelationId = 'X-Correlation-ID',
+  QspaceUser = 'x-qspace-user',
 }
 
 export enum ImmichQuery {

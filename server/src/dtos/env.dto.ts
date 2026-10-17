@@ -86,5 +86,7 @@ export const EnvSchema = z
     REDIS_PASSWORD: z.string().optional(),
     REDIS_SOCKET: z.string().optional(),
     REDIS_URL: z.string().optional(),
+    QSPACE_SERVICE_TOKEN: z.string().optional(),
+    IMMICH_DISABLE_WEB: stringBool.optional(),
   })
   .meta({ id: 'EnvDto' });

@@ -51,7 +51,7 @@ describe(UserAdminController.name, () => {
         password: 'password',
         pinCode: null,
       });
-      expect(service.create).toHaveBeenCalledWith(expect.objectContaining({ pinCode: null }));
+      expect(service.create).toHaveBeenCalledWith(undefined, expect.objectContaining({ pinCode: null }));
     });
 
     it('should allow a null avatarColor', async () => {
@@ -61,7 +61,21 @@ describe(UserAdminController.name, () => {
         password: 'password',
         avatarColor: null,
       });
-      expect(service.create).toHaveBeenCalledWith(expect.objectContaining({ avatarColor: null }));
+      expect(service.create).toHaveBeenCalledWith(undefined, expect.objectContaining({ avatarColor: null }));
+    });
+
+    it('should reject an invalid id', async () => {
+      const { status, body } = await request(ctx.getHttpServer())
+        .post(`/admin/users`)
+        .set('Authorization', `Bearer token`)
+        .send({
+          email: 'user@immich.app',
+          password: 'test',
+          name: 'Test User',
+          id: 'not-a-valid-uuid',
+        });
+      expect(status).toBe(400);
+      expect(body).toEqual(errorDto.badRequest(expect.arrayContaining([expect.stringContaining('[id]')])));
     });
 
     it(`should `, async () => {

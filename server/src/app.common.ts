@@ -40,7 +40,7 @@ export async function configureExpress(
   },
 ) {
   const configRepository = app.get(ConfigRepository);
-  const { environment, host, port, helmet, resourcePaths, network } = configRepository.getEnv();
+  const { environment, host, port, helmet, resourcePaths, network, web } = configRepository.getEnv();
 
   const logger = await app.resolve(LoggingRepository);
   logger.setContext('Bootstrap');
@@ -67,25 +67,29 @@ export async function configureExpress(
 
   useSwagger(app, { write: configRepository.isDev() && permitSwaggerWrite });
 
-  if (existsSync(resourcePaths.web.root)) {
-    // copied from https://github.com/sveltejs/kit/blob/679b5989fe62e3964b9a73b712d7b41831aa1f07/packages/adapter-node/src/handler.js#L46
-    // provides serving of precompressed assets and caching of immutable assets
-    app.use(
-      sirv(resourcePaths.web.root, {
-        etag: true,
-        gzip: true,
-        brotli: true,
-        extensions: [],
-        setHeaders: (res, pathname) => {
-          if (pathname.startsWith(`/_app/immutable`) && res.statusCode === 200) {
-            res.setHeader('cache-control', 'public,max-age=31536000,immutable');
-          }
-        },
-      }),
-    );
-  }
+  if (web.disabled) {
+    logger.log('Web client disabled (IMMICH_DISABLE_WEB=true)');
+  } else {
+    if (existsSync(resourcePaths.web.root)) {
+      // copied from https://github.com/sveltejs/kit/blob/679b5989fe62e3964b9a73b712d7b41831aa1f07/packages/adapter-node/src/handler.js#L46
+      // provides serving of precompressed assets and caching of immutable assets
+      app.use(
+        sirv(resourcePaths.web.root, {
+          etag: true,
+          gzip: true,
+          brotli: true,
+          extensions: [],
+          setHeaders: (res, pathname) => {
+            if (pathname.startsWith(`/_app/immutable`) && res.statusCode === 200) {
+              res.setHeader('cache-control', 'public,max-age=31536000,immutable');
+            }
+          },
+        }),
+      );
+    }
 
-  app.use(app.get(ssr).ssr(excludePaths));
+    app.use(app.get(ssr).ssr(excludePaths));
+  }
   app.use(compression());
 
   const server = await (host ? app.listen(port, host) : app.listen(port));

@@ -89,6 +89,7 @@ export const UserAdminCreateSchema = z
     shouldChangePassword: z.boolean().optional().describe('Require password change on next login'),
     notify: z.boolean().optional().describe('Send notification email'),
     isAdmin: z.boolean().optional().describe('Grant admin privileges'),
+    id: z.uuid().optional().describe('User ID (only accepted with the Q Space service token)'),
   })
   .meta({ id: 'UserAdminCreateDto' });
 

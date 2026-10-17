@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { SALT_ROUNDS } from 'src/constants';
 import { UserAdmin } from 'src/database';
 import { AuthDto, SignUpDto } from 'src/dtos/auth.dto';
-import { AuthType, Permission } from 'src/enum';
+import { AuthType, Permission, UserStatus } from 'src/enum';
 import { AuthService } from 'src/services/auth.service';
 import { UserMetadataItem } from 'src/types';
 import { ApiKeyFactory } from 'test/factories/api-key.factory';
@@ -14,6 +14,7 @@ import { UserFactory } from 'test/factories/user.factory';
 import { sharedLinkStub } from 'test/fixtures/shared-link.stub';
 import { systemConfigStub } from 'test/fixtures/system-config.stub';
 import { userStub } from 'test/fixtures/user.stub';
+import { mockEnvData } from 'test/repositories/config.repository.mock';
 import { newUuid } from 'test/small.factory';
 import { newTestService, ServiceMocks } from 'test/utils';
 
@@ -647,6 +648,222 @@ describe(AuthService.name, () => {
           metadata: { adminRoute: false, sharedLinkRoute: false, uri: 'test' },
         }),
       ).resolves.toEqual({ user: authUser, apiKey: expect.objectContaining(authApiKey) });
+      expect(mocks.apiKey.getKey).toHaveBeenCalledWith(Buffer.from('auth_token (hashed)'));
+    });
+  });
+
+  describe('validate - qspace service token', () => {
+    const serviceToken = 'service-secret';
+    const validUserId = '6f1c3a52-8d4e-4b7a-9c21-0e5d7f3b9a14';
+
+    beforeEach(() => {
+      mocks.config.getEnv.mockReturnValue(mockEnvData({ qspace: { serviceToken } }));
+    });
+
+    it('should validate request with valid token and active user', async () => {
+      const user = UserFactory.create({
+        id: validUserId,
+        status: UserStatus.Active,
+        deletedAt: null,
+      });
+      mocks.user.get.mockResolvedValue(user);
+
+      await expect(
+        sut.authenticate({
+          headers: {
+            'x-qspace-user': validUserId,
+            authorization: `Bearer ${serviceToken}`,
+          },
+          queryParams: {},
+          metadata: { adminRoute: false, sharedLinkRoute: false, uri: 'test' },
+        }),
+      ).resolves.toEqual({
+        user: {
+          id: user.id,
+          isAdmin: user.isAdmin,
+          name: user.name,
+          email: user.email,
+          quotaUsageInBytes: user.quotaUsageInBytes,
+          quotaSizeInBytes: user.quotaSizeInBytes,
+        },
+        qspaceService: true,
+      });
+
+      expect(mocks.user.get).toHaveBeenCalledWith(validUserId, { withDeleted: true });
+    });
+
+    it('should reject wrong token and not call session validation', async () => {
+      await expect(
+        sut.authenticate({
+          headers: {
+            'x-qspace-user': validUserId,
+            authorization: 'Bearer wrong-secret',
+          },
+          queryParams: {},
+          metadata: { adminRoute: false, sharedLinkRoute: false, uri: 'test' },
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(mocks.session.getByToken).not.toHaveBeenCalled();
+    });
+
+    it('should reject missing bearer token', async () => {
+      await expect(
+        sut.authenticate({
+          headers: {
+            'x-qspace-user': validUserId,
+          },
+          queryParams: {},
+          metadata: { adminRoute: false, sharedLinkRoute: false, uri: 'test' },
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(mocks.session.getByToken).not.toHaveBeenCalled();
+    });
+
+    it('should reject invalid uuid header without calling user.get', async () => {
+      await expect(
+        sut.authenticate({
+          headers: {
+            'x-qspace-user': 'not-a-valid-uuid',
+            authorization: `Bearer ${serviceToken}`,
+          },
+          queryParams: {},
+          metadata: { adminRoute: false, sharedLinkRoute: false, uri: 'test' },
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(mocks.user.get).not.toHaveBeenCalled();
+    });
+
+    it('should reject when user is not found', async () => {
+      mocks.user.get.mockResolvedValue(void 0);
+
+      await expect(
+        sut.authenticate({
+          headers: {
+            'x-qspace-user': validUserId,
+            authorization: `Bearer ${serviceToken}`,
+          },
+          queryParams: {},
+          metadata: { adminRoute: false, sharedLinkRoute: false, uri: 'test' },
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      expect(mocks.user.get).toHaveBeenCalledWith(validUserId, { withDeleted: true });
+    });
+
+    it('should reject deleted user (deletedAt set)', async () => {
+      const user = UserFactory.create({
+        id: validUserId,
+        status: UserStatus.Active,
+        deletedAt: new Date(),
+      });
+      mocks.user.get.mockResolvedValue(user);
+
+      await expect(
+        sut.authenticate({
+          headers: {
+            'x-qspace-user': validUserId,
+            authorization: `Bearer ${serviceToken}`,
+          },
+          queryParams: {},
+          metadata: { adminRoute: false, sharedLinkRoute: false, uri: 'test' },
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('should reject user with Removing status', async () => {
+      const user = UserFactory.create({
+        id: validUserId,
+        status: UserStatus.Removing,
+        deletedAt: null,
+      });
+      mocks.user.get.mockResolvedValue(user);
+
+      await expect(
+        sut.authenticate({
+          headers: {
+            'x-qspace-user': validUserId,
+            authorization: `Bearer ${serviceToken}`,
+          },
+          queryParams: {},
+          metadata: { adminRoute: false, sharedLinkRoute: false, uri: 'test' },
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('should fall back to normal session validation if env token is not set', async () => {
+      mocks.config.getEnv.mockReturnValue(mockEnvData({ qspace: { serviceToken: undefined } }));
+
+      const session = SessionFactory.create();
+      const sessionWithToken = {
+        id: session.id,
+        updatedAt: session.updatedAt,
+        user: UserFactory.create(),
+        pinExpiresAt: null,
+        appVersion: null,
+        oauthSid: null,
+      };
+      mocks.session.getByToken.mockResolvedValue(sessionWithToken);
+
+      await expect(
+        sut.authenticate({
+          headers: {
+            'x-qspace-user': validUserId,
+            authorization: 'Bearer auth_token',
+          },
+          queryParams: {},
+          metadata: { adminRoute: false, sharedLinkRoute: false, uri: 'test' },
+        }),
+      ).resolves.toEqual({
+        user: sessionWithToken.user,
+        session: {
+          id: session.id,
+          hasElevatedPermission: false,
+        },
+      });
+
+      expect(mocks.session.getByToken).toHaveBeenCalled();
+    });
+
+    it('should throw ForbiddenException for non-admin service user on adminRoute', async () => {
+      const user = UserFactory.create({
+        id: validUserId,
+        isAdmin: false,
+        status: UserStatus.Active,
+        deletedAt: null,
+      });
+      mocks.user.get.mockResolvedValue(user);
+
+      await expect(
+        sut.authenticate({
+          headers: {
+            'x-qspace-user': validUserId,
+            authorization: `Bearer ${serviceToken}`,
+          },
+          queryParams: {},
+          metadata: { adminRoute: true, sharedLinkRoute: false, uri: 'test' },
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('should follow normal api key flow when env token is set but x-qspace-user is absent and x-api-key is present', async () => {
+      const authUser = UserFactory.create();
+      const authApiKey = ApiKeyFactory.from({ permissions: [Permission.All] })
+        .user(authUser)
+        .build();
+
+      mocks.apiKey.getKey.mockResolvedValue(authApiKey);
+
+      await expect(
+        sut.authenticate({
+          headers: { 'x-api-key': 'auth_token' },
+          queryParams: {},
+          metadata: { adminRoute: false, sharedLinkRoute: false, uri: 'test' },
+        }),
+      ).resolves.toEqual({ user: authUser, apiKey: expect.objectContaining(authApiKey) });
+
       expect(mocks.apiKey.getKey).toHaveBeenCalledWith(Buffer.from('auth_token (hashed)'));
     });
   });

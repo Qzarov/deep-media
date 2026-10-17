@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { parse } from 'cookie';
 import { DateTime } from 'luxon';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { IncomingHttpHeaders } from 'node:http';
 import { LOGIN_DUMMY_HASH, LOGIN_URL, MOBILE_REDIRECT, SALT_ROUNDS } from 'src/constants';
 import { AuthSharedLink, AuthUser, UserAdmin } from 'src/database';
@@ -21,13 +22,14 @@ import {
   mapLoginResponse,
 } from 'src/dtos/auth.dto';
 import { UserAdminResponseDto, mapUserAdmin } from 'src/dtos/user.dto';
-import { AuthType, ImmichCookie, ImmichHeader, ImmichQuery, JobName, Permission } from 'src/enum';
+import { AuthType, ImmichCookie, ImmichHeader, ImmichQuery, JobName, Permission, UserStatus } from 'src/enum';
 import { OAuthProfile } from 'src/repositories/oauth.repository';
 import { BaseService } from 'src/services/base.service';
 import { isGranted } from 'src/utils/access';
 import { HumanReadableSize } from 'src/utils/bytes';
 import { generateProfileImage } from 'src/utils/profile-image';
 import { getUserAgentDetails } from 'src/utils/request';
+import z from 'zod';
 export interface LoginDetails {
   isSecure: boolean;
   clientIp: string;
@@ -53,6 +55,12 @@ export type ValidateRequest = {
     uri: string;
   };
 };
+
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const hashA = createHash('sha256').update(a).digest();
+  const hashB = createHash('sha256').update(b).digest();
+  return timingSafeEqual(hashA, hashB);
+}
 
 @Injectable()
 export class AuthService extends BaseService {
@@ -242,6 +250,10 @@ export class AuthService extends BaseService {
   }
 
   private async validate({ headers, queryParams }: Omit<ValidateRequest, 'metadata'>): Promise<AuthDto> {
+    if (headers[ImmichHeader.QspaceUser] && this.configRepository.getEnv().qspace.serviceToken) {
+      return this.validateQspaceService(headers);
+    }
+
     const shareKey = (headers[ImmichHeader.SharedLinkKey] || queryParams[ImmichQuery.SharedLinkKey]) as string;
     const shareSlug = (headers[ImmichHeader.SharedLinkSlug] || queryParams[ImmichQuery.SharedLinkSlug]) as string;
     const session = (headers[ImmichHeader.UserToken] ||
@@ -268,6 +280,46 @@ export class AuthService extends BaseService {
     }
 
     throw new UnauthorizedException('Authentication required');
+  }
+
+  private async validateQspaceService(headers: IncomingHttpHeaders): Promise<AuthDto> {
+    const configuredToken = this.configRepository.getEnv().qspace.serviceToken;
+    const token = this.getBearerToken(headers);
+    if (!configuredToken || !token || !timingSafeStringEqual(token, configuredToken)) {
+      this.logger.warn('Rejected Q Space service request: invalid service token');
+      throw new UnauthorizedException('Invalid service token');
+    }
+
+    const rawUserId = headers[ImmichHeader.QspaceUser];
+    if (typeof rawUserId !== 'string') {
+      throw new UnauthorizedException('Invalid Q Space user');
+    }
+
+    const parsed = z.uuid().safeParse(rawUserId);
+    if (!parsed.success) {
+      throw new UnauthorizedException('Invalid Q Space user');
+    }
+
+    const userId = parsed.data;
+    const user = await this.userRepository.get(userId, { withDeleted: true });
+    if (!user || user.deletedAt || user.status !== UserStatus.Active) {
+      this.logger.warn(`Rejected Q Space service request: invalid user ${userId}`);
+      throw new UnauthorizedException('Invalid Q Space user');
+    }
+
+    this.logger.verbose(`Q Space service request as user ${user.id}`);
+
+    return {
+      user: {
+        id: user.id,
+        isAdmin: user.isAdmin,
+        name: user.name,
+        email: user.email,
+        quotaUsageInBytes: user.quotaUsageInBytes,
+        quotaSizeInBytes: user.quotaSizeInBytes,
+      },
+      qspaceService: true,
+    };
   }
 
   getMobileRedirect(url: string) {
