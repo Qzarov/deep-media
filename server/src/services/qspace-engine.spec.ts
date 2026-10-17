@@ -433,6 +433,20 @@ describe('Q Space engine', () => {
         });
       });
 
+      it('should replace a tombstone that occupies the target path', async () => {
+        const asset = assetForMove();
+        const tombstone = AssetFactory.create({ isOffline: false, status: AssetStatus.Deleted });
+        mocks.library.getAssetForMove.mockResolvedValue(asset);
+        mocks.asset.getByChecksum.mockResolvedValue(tombstone as any);
+
+        const result = await sut.moveAssets(authStub.admin, library.id, {
+          items: [{ assetId: asset.id, toPath: '/mnt/agent/b.jpg' }],
+        });
+
+        expect(result.moved).toBe(1);
+        expect(mocks.library.moveAsset).toHaveBeenCalledWith(asset.id, expect.any(Object), tombstone.id);
+      });
+
       it('should move every asset below a folder prefix', async () => {
         const a = assetForMove({ originalPath: '/mnt/agent/old/a.jpg' });
         const b = assetForMove({ originalPath: '/mnt/agent/old/sub/b.jpg' });

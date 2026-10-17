@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { Endpoint, HistoryBuilder } from 'src/decorators';
 import { AuthDto } from 'src/dtos/auth.dto';
 import {
@@ -113,6 +113,7 @@ export class LibraryController {
       'Queue a scan for the external library to find and import new assets. With `paths`, only these folders (or files) inside the import paths are crawled and only the existing assets below them are checked.',
     history: new HistoryBuilder().added('v1').beta('v1').stable('v2'),
   })
+  @ApiBody({ type: ScanLibraryDto, required: false })
   scanLibrary(@Param() { id }: UUIDParamDto, @Body() dto: ScanLibraryDto): Promise<void> {
     return this.service.queueScan(id, dto);
   }

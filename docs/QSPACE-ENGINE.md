@@ -104,8 +104,8 @@ Rules:
   supported media file.
 - `not_on_disk`: `toPath` is not a file on disk (the agent must move the file first).
 - `conflict`: another online asset already has `toPath`. This happens when a scan ran after the move but before the
-  signal; send the move before asking for a scan. An **offline** asset at `toPath` is a stale row: it is deleted (with its
-  generated files) in the same transaction and the moved asset takes its place.
+  signal; send the move before asking for a scan. An **offline** asset or a tombstone at `toPath` is a stale row: it is deleted
+  (with its generated files) in the same transaction and the moved asset takes its place.
 - An offline asset that is moved comes back online. If it was in the trash only because it went offline, it leaves the
   trash; if a user trashed it, it stays in the trash. A tombstone stays a tombstone.
 - Paths are compared exactly as the crawler stores them (`path.normalize`, no Unicode normalization).

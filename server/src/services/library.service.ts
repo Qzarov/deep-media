@@ -985,7 +985,8 @@ export class LibraryService extends BaseService {
       libraryId: library.id,
       checksum,
     });
-    if (occupant && !occupant.isOffline) {
+    // a stale row (offline, or a tombstone of a deleted file that was overwritten) gives way to the moved asset
+    if (occupant && !occupant.isOffline && occupant.status !== AssetStatus.Deleted) {
       return {
         code: LibraryAssetMoveError.Conflict,
         message: `toPath is already used by asset ${occupant.id}`,
@@ -1006,7 +1007,7 @@ export class LibraryService extends BaseService {
     );
 
     if (occupant) {
-      this.logger.debug(`Removed offline asset ${occupant.id} that occupied ${toPath} in library ${library.id}`);
+      this.logger.debug(`Removed stale asset ${occupant.id} that occupied ${toPath} in library ${library.id}`);
       filesToDelete.push(...removed);
     }
 
