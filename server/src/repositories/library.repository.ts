@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Insertable, Kysely, sql, Updateable } from 'kysely';
+import { ExpressionBuilder, Insertable, Kysely, sql, Updateable } from 'kysely';
 import { InjectKysely } from 'nestjs-kysely';
 import { DummyValue, GenerateSql } from 'src/decorators';
 import { LibraryStatsResponseDto } from 'src/dtos/library.dto';
-import { AssetType, AssetVisibility } from 'src/enum';
+import { AssetStatus, AssetType, AssetVisibility } from 'src/enum';
 import { DB } from 'src/schema';
+import { AssetTable } from 'src/schema/tables/asset.table';
 import { LibraryTable } from 'src/schema/tables/library.table';
 
 export enum AssetSyncResult {
@@ -117,7 +118,97 @@ export class LibraryRepository {
     };
   }
 
-  streamAssetIds(libraryId: string) {
-    return this.db.selectFrom('asset').select(['id']).where('libraryId', '=', libraryId).stream();
+  streamAssetIds(libraryId: string, paths?: string[]) {
+    return this.db
+      .selectFrom('asset')
+      .select(['id'])
+      .where('libraryId', '=', libraryId)
+      .$if(!!paths, (qb) => qb.where((eb) => isUnderPaths(eb, paths!)))
+      .stream();
+  }
+
+  // Q Space: helpers for moving assets inside a library without changing their ids
+
+  @GenerateSql({ params: [DummyValue.UUID, { id: DummyValue.UUID }] })
+  getAssetForMove(libraryId: string, { id, originalPath }: { id?: string; originalPath?: string }) {
+    return this.db
+      .selectFrom('asset')
+      .select(assetForMoveColumns)
+      .where('libraryId', '=', libraryId)
+      .$if(!!id, (qb) => qb.where('id', '=', id!))
+      .$if(!!originalPath, (qb) => qb.where('originalPath', '=', originalPath!))
+      .limit(1)
+      .executeTakeFirst();
+  }
+
+  @GenerateSql({ params: [DummyValue.UUID, DummyValue.STRING] })
+  getAssetsForMoveByPrefix(libraryId: string, prefix: string) {
+    return this.db
+      .selectFrom('asset')
+      .select(assetForMoveColumns)
+      .where('libraryId', '=', libraryId)
+      .where((eb) => isUnderPaths(eb, [prefix], false))
+      .orderBy('originalPath')
+      .execute();
+  }
+
+  /**
+   * Updates the path related columns of an asset in one transaction. When `removeAssetId` is set, that asset
+   * (a stale offline row that occupies the target path) is deleted first and the paths of its generated files
+   * are returned, so that they can be removed from disk.
+   */
+  async moveAsset(id: string, values: Updateable<AssetTable>, removeAssetId?: string): Promise<string[]> {
+    return this.db.transaction().execute(async (tx) => {
+      let files: string[] = [];
+      if (removeAssetId) {
+        const rows = await tx.selectFrom('asset_file').select('path').where('assetId', '=', removeAssetId).execute();
+        files = rows.map(({ path }) => path);
+        await tx.deleteFrom('asset').where('id', '=', removeAssetId).execute();
+      }
+
+      await tx.updateTable('asset').set(values).where('id', '=', id).execute();
+      return files;
+    });
+  }
+  /**
+   * Q Space: "permanently deletes" an external asset whose file is still on disk. The row stays as a tombstone
+   * (status deleted, deletedAt set) so that the next scan does not import the file again under a new id. Generated
+   * data is removed: files (thumbnails, previews, encoded video), faces, embeddings, OCR and job status.
+   */
+  async tombstoneAsset(id: string): Promise<void> {
+    await this.db.transaction().execute(async (tx) => {
+      await tx
+        .updateTable('asset')
+        .set({ status: AssetStatus.Deleted, deletedAt: sql`coalesce("deletedAt", now())` })
+        .where('id', '=', id)
+        .execute();
+      await tx.deleteFrom('asset_file').where('assetId', '=', id).execute();
+      await tx.deleteFrom('asset_face').where('assetId', '=', id).execute();
+      await tx.deleteFrom('smart_search').where('assetId', '=', id).execute();
+      await tx.deleteFrom('asset_ocr').where('assetId', '=', id).execute();
+      await tx.deleteFrom('ocr_search').where('assetId', '=', id).execute();
+      await tx.deleteFrom('asset_job_status').where('assetId', '=', id).execute();
+    });
   }
 }
+
+const assetForMoveColumns = [
+  'id',
+  'ownerId',
+  'libraryId',
+  'originalPath',
+  'isOffline',
+  'isExternal',
+  'status',
+  'deletedAt',
+] as const;
+
+/** `originalPath` is one of the paths or lies below one of them (path separator aware, no LIKE wildcards) */
+const isUnderPaths = (eb: ExpressionBuilder<DB, 'asset'>, paths: string[], includeExact = true) =>
+  eb.or(
+    paths.flatMap((path) => {
+      const prefix = path.endsWith('/') ? path : `${path}/`;
+      const startsWith = sql<boolean>`starts_with(${eb.ref('originalPath')}, ${prefix})`;
+      return includeExact ? [eb('originalPath', '=', path), startsWith] : [startsWith];
+    }),
+  );

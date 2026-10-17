@@ -177,6 +177,7 @@ export const getForDetectedFaces = (asset: ReturnType<AssetFactory['build']>) =>
 export const getForSidecarWrite = (asset: ReturnType<AssetFactory['build']>) => ({
   id: asset.id,
   originalPath: asset.originalPath,
+  isExternal: asset.isExternal,
   files: asset.files.map((file) => getDehydrated(file)),
   exifInfo: getDehydrated(asset.exifInfo),
 });
@@ -189,6 +190,8 @@ export const getForAssetDeletion = (asset: ReturnType<AssetFactory['build']>) =>
   livePhotoVideoId: asset.livePhotoVideoId,
   originalPath: asset.originalPath,
   isOffline: asset.isOffline,
+  isExternal: asset.isExternal,
+  status: asset.status,
   exifInfo: asset.exifInfo ? getDehydrated(asset.exifInfo) : null,
   files: asset.files.map((file) => getDehydrated(file)),
   stack: asset.stack

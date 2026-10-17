@@ -1,16 +1,20 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Endpoint, HistoryBuilder } from 'src/decorators';
+import { AuthDto } from 'src/dtos/auth.dto';
 import {
   CreateLibraryDto,
+  LibraryAssetMoveDto,
+  LibraryAssetMoveResponseDto,
   LibraryResponseDto,
   LibraryStatsResponseDto,
+  ScanLibraryDto,
   UpdateLibraryDto,
   ValidateLibraryDto,
   ValidateLibraryResponseDto,
 } from 'src/dtos/library.dto';
 import { ApiTag, Permission } from 'src/enum';
-import { Authenticated } from 'src/middleware/auth.guard';
+import { Auth, Authenticated } from 'src/middleware/auth.guard';
 import { LibraryService } from 'src/services/library.service';
 import { UUIDParamDto } from 'src/validation';
 
@@ -105,10 +109,28 @@ export class LibraryController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Endpoint({
     summary: 'Scan a library',
-    description: 'Queue a scan for the external library to find and import new assets.',
+    description:
+      'Queue a scan for the external library to find and import new assets. With `paths`, only these folders (or files) inside the import paths are crawled and only the existing assets below them are checked.',
     history: new HistoryBuilder().added('v1').beta('v1').stable('v2'),
   })
-  scanLibrary(@Param() { id }: UUIDParamDto): Promise<void> {
-    return this.service.queueScan(id);
+  scanLibrary(@Param() { id }: UUIDParamDto, @Body() dto: ScanLibraryDto): Promise<void> {
+    return this.service.queueScan(id, dto);
+  }
+
+  @Post(':id/assets/move')
+  @Authenticated({ permission: Permission.LibraryUpdate })
+  @HttpCode(HttpStatus.OK)
+  @Endpoint({
+    summary: 'Move library assets',
+    description:
+      'Tell an external library that files were moved or renamed on disk. The assets keep their ids, faces, embeddings, albums and favorites. Accepts a batch of items or a folder prefix. Each item succeeds or fails on its own. Allowed for admins and the owner of the library.',
+    history: new HistoryBuilder().added('v2.7.5-qspace').alpha('v2.7.5-qspace'),
+  })
+  moveLibraryAssets(
+    @Auth() auth: AuthDto,
+    @Param() { id }: UUIDParamDto,
+    @Body() dto: LibraryAssetMoveDto,
+  ): Promise<LibraryAssetMoveResponseDto> {
+    return this.service.moveAssets(auth, id, dto);
   }
 }

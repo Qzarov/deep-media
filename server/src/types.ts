@@ -232,6 +232,11 @@ export interface ILibraryFileJob {
   totalAssets?: number;
 }
 
+export interface ILibraryScanJob extends IEntityJob {
+  /** Q Space: limit the scan to these absolute folders or files (all inside the import paths) */
+  paths?: string[];
+}
+
 export interface ILibraryBulkIdsJob {
   libraryId: string;
   importPaths: string[];
@@ -391,8 +396,8 @@ export type JobItem =
 
   // Library Management
   | { name: JobName.LibrarySyncFiles; data: ILibraryFileJob }
-  | { name: JobName.LibrarySyncFilesQueueAll; data: IEntityJob }
-  | { name: JobName.LibrarySyncAssetsQueueAll; data: IEntityJob }
+  | { name: JobName.LibrarySyncFilesQueueAll; data: ILibraryScanJob }
+  | { name: JobName.LibrarySyncAssetsQueueAll; data: ILibraryScanJob }
   | { name: JobName.LibrarySyncAssets; data: ILibraryBulkIdsJob }
   | { name: JobName.LibraryRemoveAsset; data: ILibraryFileJob }
   | { name: JobName.LibraryDelete; data: IEntityJob }

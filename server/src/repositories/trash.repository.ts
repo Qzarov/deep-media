@@ -3,12 +3,18 @@ import { InjectKysely } from 'nestjs-kysely';
 import { DummyValue, GenerateSql } from 'src/decorators';
 import { AssetStatus } from 'src/enum';
 import { DB } from 'src/schema';
+import { isExternalTombstone } from 'src/utils/database';
 
 export class TrashRepository {
   constructor(@InjectKysely() private db: Kysely<DB>) {}
 
   getDeletedIds(): AsyncIterableIterator<{ id: string }> {
-    return this.db.selectFrom('asset').select(['id']).where('status', '=', AssetStatus.Deleted).stream();
+    return this.db
+      .selectFrom('asset')
+      .select(['id'])
+      .where('status', '=', AssetStatus.Deleted)
+      .where((eb) => eb.not(isExternalTombstone(eb)))
+      .stream();
   }
 
   @GenerateSql({ params: [DummyValue.UUID] })

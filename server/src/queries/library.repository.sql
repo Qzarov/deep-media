@@ -63,3 +63,39 @@ from
   "library"
 where
   "library"."id" = $1
+
+-- LibraryRepository.getAssetForMove
+select
+  "id",
+  "ownerId",
+  "libraryId",
+  "originalPath",
+  "isOffline",
+  "isExternal",
+  "status",
+  "deletedAt"
+from
+  "asset"
+where
+  "libraryId" = $1
+  and "id" = $2
+limit
+  $3
+
+-- LibraryRepository.getAssetsForMoveByPrefix
+select
+  "id",
+  "ownerId",
+  "libraryId",
+  "originalPath",
+  "isOffline",
+  "isExternal",
+  "status",
+  "deletedAt"
+from
+  "asset"
+where
+  "libraryId" = $1
+  and starts_with("originalPath", $2)
+order by
+  "originalPath"

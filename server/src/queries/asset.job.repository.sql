@@ -21,6 +21,7 @@ limit
 select
   "id",
   "originalPath",
+  "isExternal",
   (
     select
       coalesce(json_agg(agg), '[]')
@@ -524,6 +525,8 @@ select
   "asset"."livePhotoVideoId",
   "asset"."originalPath",
   "asset"."isOffline",
+  "asset"."isExternal",
+  "asset"."status",
   to_json("asset_exif") as "exifInfo",
   (
     select
@@ -802,6 +805,19 @@ from
   "asset"
 where
   "asset"."deletedAt" <= $1
+  and not (
+    "asset"."status" = 'deleted'
+    and "asset"."isExternal" = true
+    and "asset"."isOffline" = false
+    and not exists (
+      select
+        "asset_file"."id"
+      from
+        "asset_file"
+      where
+        "asset_file"."assetId" = "asset"."id"
+    )
+  )
 
 -- AssetJobRepository.streamForSidecar
 select
