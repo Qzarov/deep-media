@@ -39,6 +39,9 @@ const resetEnv = () => {
     'REDIS_URL',
 
     'NO_COLOR',
+
+    'QSPACE_SERVICE_TOKEN',
+    'IMMICH_DISABLE_WEB',
   ]) {
     delete process.env[env];
   }
@@ -80,6 +83,8 @@ describe('getEnv', () => {
 
     expect(config.plugins.external).toEqual({ allow: false });
     expect(config.setup).toEqual({ allow: true });
+    expect(config.qspace).toEqual({ serviceToken: undefined });
+    expect(config.web).toEqual({ disabled: false });
   });
 
   describe('IMMICH_MEDIA_LOCATION', () => {
@@ -322,6 +327,38 @@ describe('getEnv', () => {
       process.env.IMMICH_TELEMETRY_INCLUDE = 'io, host, api';
       const { telemetry } = getEnv();
       expect(telemetry.metrics).toEqual(new Set([ImmichTelemetry.Api, ImmichTelemetry.Host, ImmichTelemetry.Io]));
+    });
+  });
+
+  describe('qspace', () => {
+    it('should default serviceToken to undefined', () => {
+      const { qspace } = getEnv();
+      expect(qspace).toEqual({ serviceToken: undefined });
+    });
+
+    it('should parse serviceToken', () => {
+      process.env.QSPACE_SERVICE_TOKEN = 'my-token';
+      const { qspace } = getEnv();
+      expect(qspace).toEqual({ serviceToken: 'my-token' });
+    });
+
+    it('should map empty string serviceToken to undefined', () => {
+      process.env.QSPACE_SERVICE_TOKEN = '';
+      const { qspace } = getEnv();
+      expect(qspace).toEqual({ serviceToken: undefined });
+    });
+  });
+
+  describe('web', () => {
+    it('should default disabled to false', () => {
+      const { web } = getEnv();
+      expect(web).toEqual({ disabled: false });
+    });
+
+    it('should parse IMMICH_DISABLE_WEB=true', () => {
+      process.env.IMMICH_DISABLE_WEB = 'true';
+      const { web } = getEnv();
+      expect(web).toEqual({ disabled: true });
     });
   });
 });

@@ -127,6 +127,14 @@ export interface EnvData {
 
   noColor: boolean;
   nodeVersion?: string;
+
+  qspace: {
+    serviceToken?: string;
+  };
+
+  web: {
+    disabled: boolean;
+  };
 }
 
 const productionKeys = {
@@ -378,6 +386,14 @@ const getEnv = (): EnvData => {
     },
 
     noColor: !!dto.NO_COLOR,
+
+    qspace: {
+      serviceToken: dto.QSPACE_SERVICE_TOKEN || undefined,
+    },
+
+    web: {
+      disabled: dto.IMMICH_DISABLE_WEB ?? false,
+    },
   };
 };
 

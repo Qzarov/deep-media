@@ -107,6 +107,12 @@ export const envData: EnvData = {
   },
 
   noColor: false,
+  qspace: {
+    serviceToken: undefined,
+  },
+  web: {
+    disabled: false,
+  },
 };
 
 export const mockEnvData = (config: Partial<EnvData>) => ({ ...envData, ...config });

@@ -40,8 +40,8 @@ export class UserAdminController {
     description: 'Create a new user.',
     history: new HistoryBuilder().added('v1').beta('v1').stable('v2'),
   })
-  createUserAdmin(@Body() createUserDto: UserAdminCreateDto): Promise<UserAdminResponseDto> {
-    return this.service.create(createUserDto);
+  createUserAdmin(@Auth() auth: AuthDto, @Body() createUserDto: UserAdminCreateDto): Promise<UserAdminResponseDto> {
+    return this.service.create(auth, createUserDto);
   }
 
   @Get(':id')

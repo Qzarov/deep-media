@@ -17,6 +17,8 @@ export type AuthDto = {
   apiKey?: AuthApiKey;
   sharedLink?: AuthSharedLink;
   session?: AuthSession;
+  /** Set when the request was authenticated with the Q Space service token */
+  qspaceService?: boolean;
 };
 
 const LoginCredentialSchema = z

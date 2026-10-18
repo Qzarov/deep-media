@@ -26,7 +26,7 @@ describe(UserAdminService.name, () => {
       mocks.user.getAdmin.mockResolvedValueOnce(void 0);
 
       await expect(
-        sut.create({
+        sut.create(authStub.admin, {
           email: 'john_smith@email.com',
           name: 'John Smith',
           password: 'password',
@@ -39,7 +39,7 @@ describe(UserAdminService.name, () => {
       mocks.user.create.mockResolvedValue(userStub.user1);
 
       await expect(
-        sut.create({
+        sut.create(authStub.admin, {
           email: userStub.user1.email,
           name: userStub.user1.name,
           password: 'password',
@@ -54,6 +54,59 @@ describe(UserAdminService.name, () => {
         storageLabel: 'label',
         password: expect.anything(),
       });
+    });
+
+    it('should reject id with non-service auth', async () => {
+      const targetId = 'a0000000-0000-0000-0000-000000000001';
+      await expect(
+        sut.create(authStub.admin, {
+          id: targetId,
+          email: 'service@immich.cloud',
+          name: 'Service User',
+          password: 'password',
+        }),
+      ).rejects.toThrow(new BadRequestException('id can only be set by the Q Space service'));
+
+      expect(mocks.user.create).not.toHaveBeenCalled();
+    });
+
+    it('should allow id with qspaceService auth and no existing user', async () => {
+      const targetId = 'a0000000-0000-0000-0000-000000000001';
+      const createdUser = { ...userStub.user1, id: targetId };
+      mocks.user.get.mockResolvedValue(void 0);
+      mocks.user.getAdmin.mockResolvedValue(userStub.admin);
+      mocks.user.create.mockResolvedValue(createdUser);
+
+      const auth = { ...authStub.admin, qspaceService: true };
+
+      await expect(
+        sut.create(auth, {
+          id: targetId,
+          email: createdUser.email,
+          name: createdUser.name,
+          password: 'password',
+        }),
+      ).resolves.toEqual(mapUserAdmin(createdUser));
+
+      expect(mocks.user.create).toHaveBeenCalledWith(expect.objectContaining({ id: targetId }));
+    });
+
+    it('should reject when id is already taken', async () => {
+      const targetId = 'a0000000-0000-0000-0000-000000000001';
+      mocks.user.get.mockResolvedValue(userStub.user1);
+
+      const auth = { ...authStub.admin, qspaceService: true };
+
+      await expect(
+        sut.create(auth, {
+          id: targetId,
+          email: 'new@immich.cloud',
+          name: 'New User',
+          password: 'password',
+        }),
+      ).rejects.toThrow(new BadRequestException('User id is not available'));
+
+      expect(mocks.user.create).not.toHaveBeenCalled();
     });
   });
 

@@ -222,6 +222,8 @@ export type UserAdminCreateDto = {
     avatarColor?: (UserAvatarColor) | null;
     /** User email */
     email: string;
+    /** User ID (only accepted with the Q Space service token) */
+    id?: string;
     /** Grant admin privileges */
     isAdmin?: boolean;
     /** User name */
