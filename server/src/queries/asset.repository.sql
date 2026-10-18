@@ -265,6 +265,7 @@ select
   "stackId",
   "originalPath",
   "isFavorite",
+  "isExternal",
   (
     select
       coalesce(json_agg(agg), '[]')

@@ -5956,9 +5956,76 @@
         "x-immich-state": "Stable"
       }
     },
+    "/libraries/{id}/assets/move": {
+      "post": {
+        "description": "Tell an external library that files were moved or renamed on disk. The assets keep their ids, faces, embeddings, albums and favorites. Accepts a batch of items or a folder prefix. Each item succeeds or fails on its own. Allowed for admins and the owner of the library.",
+        "operationId": "moveLibraryAssets",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryAssetMoveDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryAssetMoveResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "summary": "Move library assets",
+        "tags": [
+          "Libraries"
+        ],
+        "x-immich-history": [
+          {
+            "version": "v2.7.5-qspace",
+            "state": "Added"
+          },
+          {
+            "version": "v2.7.5-qspace",
+            "state": "Alpha"
+          }
+        ],
+        "x-immich-permission": "library.update",
+        "x-immich-state": "Alpha"
+      }
+    },
     "/libraries/{id}/scan": {
       "post": {
-        "description": "Queue a scan for the external library to find and import new assets.",
+        "description": "Queue a scan for the external library to find and import new assets. With `paths`, only these folders (or files) inside the import paths are crawled and only the existing assets below them are checked.",
         "operationId": "scanLibrary",
         "parameters": [
           {
@@ -5972,6 +6039,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanLibraryDto"
+              }
+            }
+          },
+          "required": false
+        },
         "responses": {
           "204": {
             "description": ""
@@ -17940,6 +18017,126 @@
         ],
         "type": "object"
       },
+      "LibraryAssetMoveDto": {
+        "properties": {
+          "fromPrefix": {
+            "description": "Folder that was moved (prefix mode)",
+            "minLength": 1,
+            "type": "string"
+          },
+          "items": {
+            "description": "Assets to move",
+            "items": {
+              "$ref": "#/components/schemas/LibraryAssetMoveItemDto"
+            },
+            "maxItems": 5000,
+            "minItems": 1,
+            "type": "array"
+          },
+          "toPrefix": {
+            "description": "New location of the folder (prefix mode)",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LibraryAssetMoveError": {
+        "enum": [
+          "not_found",
+          "invalid_path",
+          "not_on_disk",
+          "conflict",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "LibraryAssetMoveItemDto": {
+        "properties": {
+          "assetId": {
+            "description": "Asset ID (either assetId or fromPath is required)",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$",
+            "type": "string"
+          },
+          "fromPath": {
+            "description": "Current original path of the asset",
+            "minLength": 1,
+            "type": "string"
+          },
+          "toPath": {
+            "description": "New absolute original path",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "toPath"
+        ],
+        "type": "object"
+      },
+      "LibraryAssetMoveResponseDto": {
+        "properties": {
+          "failed": {
+            "description": "Number of failed items",
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "items": {
+            "description": "Per item results, in request order",
+            "items": {
+              "$ref": "#/components/schemas/LibraryAssetMoveResultDto"
+            },
+            "type": "array"
+          },
+          "moved": {
+            "description": "Number of moved assets",
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "failed",
+          "items",
+          "moved"
+        ],
+        "type": "object"
+      },
+      "LibraryAssetMoveResultDto": {
+        "properties": {
+          "assetId": {
+            "description": "Asset ID",
+            "type": "string"
+          },
+          "error": {
+            "$ref": "#/components/schemas/LibraryAssetMoveError",
+            "description": "Error code"
+          },
+          "fromPath": {
+            "description": "Previous original path",
+            "type": "string"
+          },
+          "message": {
+            "description": "Error details",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether the asset was moved",
+            "type": "boolean"
+          },
+          "toPath": {
+            "description": "Requested original path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "toPath"
+        ],
+        "type": "object"
+      },
       "LibraryResponseDto": {
         "properties": {
           "assetCount": {
@@ -20802,6 +20999,21 @@
         "required": [
           "angle"
         ],
+        "type": "object"
+      },
+      "ScanLibraryDto": {
+        "properties": {
+          "paths": {
+            "description": "Absolute folders or files inside the import paths to scan. When omitted, the whole library is scanned.",
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "SearchAlbumResponseDto": {

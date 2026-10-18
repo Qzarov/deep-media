@@ -32,6 +32,7 @@ import { DatabaseRepository } from 'src/repositories/database.repository';
 import { EmailRepository } from 'src/repositories/email.repository';
 import { EventRepository } from 'src/repositories/event.repository';
 import { JobRepository } from 'src/repositories/job.repository';
+import { LibraryRepository } from 'src/repositories/library.repository';
 import { LoggingRepository } from 'src/repositories/logging.repository';
 import { MachineLearningRepository } from 'src/repositories/machine-learning.repository';
 import { MapRepository } from 'src/repositories/map.repository';
@@ -54,6 +55,7 @@ import { SyncRepository } from 'src/repositories/sync.repository';
 import { SystemMetadataRepository } from 'src/repositories/system-metadata.repository';
 import { TagRepository } from 'src/repositories/tag.repository';
 import { TelemetryRepository } from 'src/repositories/telemetry.repository';
+import { TrashRepository } from 'src/repositories/trash.repository';
 import { UserRepository } from 'src/repositories/user.repository';
 import { VersionHistoryRepository } from 'src/repositories/version-history.repository';
 import { WorkflowRepository } from 'src/repositories/workflow.repository';
@@ -420,6 +422,7 @@ const newRealRepository = <T>(key: ClassConstructor<T>, db: Kysely<DB>): T => {
     case AssetRepository:
     case AssetEditRepository:
     case AssetJobRepository:
+    case LibraryRepository:
     case MemoryRepository:
     case NotificationRepository:
     case OcrRepository:
@@ -434,6 +437,7 @@ const newRealRepository = <T>(key: ClassConstructor<T>, db: Kysely<DB>): T => {
     case SyncRepository:
     case SyncCheckpointRepository:
     case SystemMetadataRepository:
+    case TrashRepository:
     case UserRepository:
     case VersionHistoryRepository:
     case WorkflowRepository: {
@@ -482,6 +486,7 @@ const newMockRepository = <T>(key: ClassConstructor<T>) => {
     case AlbumRepository:
     case AssetRepository:
     case AssetJobRepository:
+    case LibraryRepository:
     case ConfigRepository:
     case CryptoRepository:
     case MemoryRepository:
@@ -494,6 +499,7 @@ const newMockRepository = <T>(key: ClassConstructor<T>) => {
     case SyncRepository:
     case SyncCheckpointRepository:
     case SystemMetadataRepository:
+    case TrashRepository:
     case UserRepository:
     case VersionHistoryRepository:
     case TagRepository:

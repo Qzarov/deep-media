@@ -249,8 +249,14 @@ export class AssetService extends BaseService {
     targetAsset,
   }: {
     sourceAsset: { files: AssetFile[] };
-    targetAsset: { id: string; files: AssetFile[]; originalPath: string };
+    targetAsset: { id: string; files: AssetFile[]; originalPath: string; isExternal: boolean };
   }) {
+    // Q Space: external library folders are owned by someone else (read-only for Immich),
+    // so never unlink or create a sidecar next to an external original.
+    if (targetAsset.isExternal) {
+      return;
+    }
+
     const { sidecarFile: sourceFile } = getAssetFiles(sourceAsset.files);
     if (!sourceFile?.path) {
       return;
@@ -329,7 +335,12 @@ export class AssetService extends BaseService {
       }
     }
 
-    await this.assetRepository.remove(asset);
+    // Q Space: an external asset whose file is still on disk is kept as a tombstone, so that the next library
+    // scan does not import the same file again with a new id. Only an offline asset (file gone) or the removal
+    // of the whole library (deleteOnDisk=false) removes the row.
+    const isTombstone = asset.isExternal && deleteOnDisk && !asset.isOffline;
+    await (isTombstone ? this.libraryRepository.tombstoneAsset(id) : this.assetRepository.remove(asset));
+
     if (!asset.libraryId) {
       await this.userRepository.updateUsage(asset.ownerId, -(asset.exifInfo?.fileSizeInByte || 0));
     }
@@ -337,7 +348,7 @@ export class AssetService extends BaseService {
     await this.eventRepository.emit('AssetDelete', { assetId: id, userId: asset.ownerId });
 
     // delete the motion if it is not used by another asset
-    if (asset.livePhotoVideoId) {
+    if (asset.livePhotoVideoId && !isTombstone) {
       const count = await this.assetRepository.getLivePhotoCount(asset.livePhotoVideoId);
       if (count === 0) {
         await this.jobRepository.queue({
@@ -358,7 +369,8 @@ export class AssetService extends BaseService {
       assetFiles.encodedVideoFile?.path,
     ];
 
-    if (deleteOnDisk && !asset.isOffline) {
+    // Q Space: never delete originals or sidecars of an external library, the folder is owned by someone else
+    if (deleteOnDisk && !asset.isOffline && !asset.isExternal) {
       files.push(assetFiles.sidecarFile?.path, asset.originalPath);
     }
 

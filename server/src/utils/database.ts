@@ -17,7 +17,7 @@ import { jsonArrayFrom, jsonObjectFrom } from 'kysely/helpers/postgres';
 import { Notice, PostgresError } from 'postgres';
 import { columns, lockableProperties, LockableProperty, Person } from 'src/database';
 import { AssetEditActionItem } from 'src/dtos/editing.dto';
-import { AssetFileType, AssetVisibility, DatabaseExtension, ExifOrientation } from 'src/enum';
+import { AssetFileType, AssetStatus, AssetVisibility, DatabaseExtension, ExifOrientation } from 'src/enum';
 import { AssetSearchBuilderOptions } from 'src/repositories/search.repository';
 import { DB } from 'src/schema';
 import { AssetExifTable } from 'src/schema/tables/asset-exif.table';
@@ -504,3 +504,17 @@ export const updateLockedColumns = <T extends Record<string, unknown> & { locked
   exif.lockedProperties = lockableProperties.filter((property) => property in exif);
   return exif;
 };
+
+/**
+ * Q Space: an external asset that was "permanently deleted" while its file is still on disk. The row is kept on
+ * purpose (see LibraryRepository.tombstoneAsset) and must not be queued for deletion again.
+ */
+export const isExternalTombstone = (eb: ExpressionBuilder<DB, 'asset'>) =>
+  eb.and([
+    eb('asset.status', '=', sql.lit(AssetStatus.Deleted)),
+    eb('asset.isExternal', '=', sql.lit(true)),
+    eb('asset.isOffline', '=', sql.lit(false)),
+    eb.not(
+      eb.exists(eb.selectFrom('asset_file').select('asset_file.id').whereRef('asset_file.assetId', '=', 'asset.id')),
+    ),
+  ]);

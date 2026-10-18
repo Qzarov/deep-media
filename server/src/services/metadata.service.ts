@@ -495,6 +495,13 @@ export class MetadataService extends BaseService {
       return JobStatus.Failed;
     }
 
+    // Q Space: never write into an external library. Edits stay in the database only; the locked
+    // properties are intentionally left locked so that a later metadata extraction does not
+    // overwrite them with the values from the original file.
+    if (asset.isExternal) {
+      return JobStatus.Skipped;
+    }
+
     const lockedProperties = await this.assetJobRepository.getLockedPropertiesForMetadataExtraction(id);
 
     const { sidecarFile } = getAssetFiles(asset.files);

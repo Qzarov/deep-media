@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { Insertable } from 'kysely';
 import { R_OK } from 'node:constants';
 import { Stats } from 'node:fs';
@@ -7,11 +7,17 @@ import picomatch from 'picomatch';
 import { JOBS_LIBRARY_PAGINATION_SIZE } from 'src/constants';
 import { StorageCore } from 'src/cores/storage.core';
 import { OnEvent, OnJob } from 'src/decorators';
+import { AuthDto } from 'src/dtos/auth.dto';
 import {
   CreateLibraryDto,
+  LibraryAssetMoveDto,
+  LibraryAssetMoveError,
+  LibraryAssetMoveResponseDto,
+  LibraryAssetMoveResultDto,
   LibraryResponseDto,
   LibraryStatsResponseDto,
   mapLibrary,
+  ScanLibraryDto,
   UpdateLibraryDto,
   ValidateLibraryDto,
   ValidateLibraryImportPathResponseDto,
@@ -430,19 +436,46 @@ export class LibraryService extends BaseService {
     );
   }
 
-  async queueScan(id: string) {
-    await this.findOrFail(id);
+  async queueScan(id: string, dto: ScanLibraryDto = {}) {
+    const library = await this.findOrFail(id);
 
-    this.logger.log(`Starting to scan library ${id}`);
+    let paths: string[] | undefined;
+    if (dto.paths) {
+      paths = this.resolveScanPaths(library.importPaths, dto.paths);
+      this.logger.log(`Starting to scan ${paths.length} path(s) of library ${id}`);
+    } else {
+      this.logger.log(`Starting to scan library ${id}`);
+    }
 
-    await this.jobRepository.queue({
-      name: JobName.LibrarySyncFilesQueueAll,
-      data: {
-        id,
-      },
-    });
+    await this.jobRepository.queue({ name: JobName.LibrarySyncFilesQueueAll, data: { id, paths } });
+    await this.jobRepository.queue({ name: JobName.LibrarySyncAssetsQueueAll, data: { id, paths } });
+  }
 
-    await this.jobRepository.queue({ name: JobName.LibrarySyncAssetsQueueAll, data: { id } });
+  /**
+   * Q Space: validates the paths of a partial scan. They must be absolute and inside one of the import paths.
+   * They do not have to exist: a scan of a removed folder marks its assets offline.
+   */
+  private resolveScanPaths(importPaths: string[], paths: string[]): string[] {
+    const invalid: string[] = [];
+    const resolved = new Set<string>();
+    for (const value of paths) {
+      const normalized = normalizePath(value);
+      if (!isAbsolute(value) || !isInsideAny(normalized, importPaths)) {
+        invalid.push(value);
+        continue;
+      }
+      resolved.add(normalized);
+    }
+
+    if (invalid.length > 0) {
+      throw new BadRequestException(
+        `Paths must be absolute and inside the library import paths: ${invalid.join(', ')}`,
+      );
+    }
+
+    // a path inside another requested path is already covered by it
+    const sorted = [...resolved].sort();
+    return sorted.filter((value) => !sorted.some((other) => other !== value && isInside(value, other)));
   }
 
   async queueScanAll() {
@@ -603,6 +636,11 @@ export class LibraryService extends BaseService {
       return AssetSyncResult.CHECK_OFFLINE;
     }
 
+    if (asset.status === AssetStatus.Deleted) {
+      // Q Space: a tombstone (deleted asset whose file is still on disk) must not be re-processed
+      return AssetSyncResult.DO_NOTHING;
+    }
+
     if (stat.mtime.valueOf() !== asset.fileModifiedAt.valueOf()) {
       this.logger.verbose(`Asset ${asset.originalPath} needs metadata extraction in library ${asset.libraryId}`);
 
@@ -639,8 +677,28 @@ export class LibraryService extends BaseService {
       return JobStatus.Skipped;
     }
 
+    let pathsToCrawl = validImportPaths;
+    const files: string[] = [];
+    if (job.paths) {
+      // Q Space: partial scan of the given folders (or single files) only
+      pathsToCrawl = [];
+      for (const scanPath of job.paths) {
+        if (!isInsideAny(scanPath, validImportPaths)) {
+          this.logger.warn(`Skipping scan path outside of the valid import paths: ${scanPath}`);
+          continue;
+        }
+
+        const stat = await this.storageRepository.stat(scanPath).catch(() => null);
+        if (stat?.isDirectory()) {
+          pathsToCrawl.push(scanPath);
+        } else if (stat?.isFile() && this.isImportableFile(scanPath, validImportPaths, library.exclusionPatterns)) {
+          files.push(scanPath);
+        }
+      }
+    }
+
     const pathsOnDisk = this.storageRepository.walk({
-      pathsToCrawl: validImportPaths,
+      pathsToCrawl,
       includeHidden: false,
       exclusionPatterns: library.exclusionPatterns,
       take: JOBS_LIBRARY_PAGINATION_SIZE,
@@ -649,9 +707,16 @@ export class LibraryService extends BaseService {
     let importCount = 0;
     let crawlCount = 0;
 
-    this.logger.log(`Starting disk crawl of ${validImportPaths.length} import path(s) for library ${library.id}...`);
+    this.logger.log(`Starting disk crawl of ${pathsToCrawl.length} path(s) for library ${library.id}...`);
 
-    for await (const pathBatch of pathsOnDisk) {
+    async function* withFiles() {
+      if (files.length > 0) {
+        yield files;
+      }
+      yield* pathsOnDisk;
+    }
+
+    for await (const pathBatch of withFiles()) {
       crawlCount += pathBatch.length;
       const paths = await this.assetRepository.filterNewExternalAssetPaths(library.id, pathBatch);
 
@@ -677,9 +742,26 @@ export class LibraryService extends BaseService {
       `Finished disk crawl, ${crawlCount} file(s) found on disk and queued ${importCount} file(s) for import into ${library.id}`,
     );
 
-    await this.libraryRepository.update(job.id, { refreshedAt: new Date() });
+    if (!job.paths) {
+      await this.libraryRepository.update(job.id, { refreshedAt: new Date() });
+    }
 
     return JobStatus.Success;
+  }
+
+  private isImportableFile(filePath: string, importPaths: string[], exclusionPatterns: string[]) {
+    if (!mimeTypes.isAsset(filePath)) {
+      return false;
+    }
+
+    // the crawler skips hidden files and folders below the import path as well
+    const importPath = importPaths.find((value) => isInside(filePath, value));
+    const relativePath = importPath ? path.relative(importPath, filePath) : filePath;
+    if (relativePath.split('/').some((segment) => segment.startsWith('.'))) {
+      return false;
+    }
+
+    return !exclusionPatterns.some((pattern) => picomatch.isMatch(filePath, pattern, { nocase: true }));
   }
 
   @OnJob({ name: JobName.LibraryRemoveAsset, queue: QueueName.Library })
@@ -701,6 +783,10 @@ export class LibraryService extends BaseService {
     const library = await this.libraryRepository.get(job.id);
     if (!library) {
       return JobStatus.Skipped;
+    }
+
+    if (job.paths) {
+      return this.queueSyncAssetsForPaths(library, job.paths);
     }
 
     const assetCount = await this.assetRepository.getLibraryAssetCount(job.id);
@@ -774,6 +860,195 @@ export class LibraryService extends BaseService {
     return JobStatus.Success;
   }
 
+  /**
+   * Q Space: files were moved or renamed on disk by the storage owner. Updates the path of the existing assets so
+   * that they keep their ids (and with them faces, embeddings, albums, favorites, edits). Each item succeeds or
+   * fails on its own; items are applied in request order.
+   */
+  async moveAssets(auth: AuthDto, id: string, dto: LibraryAssetMoveDto): Promise<LibraryAssetMoveResponseDto> {
+    const library = await this.findOrFail(id);
+    if (!auth.user.isAdmin && library.ownerId !== auth.user.id) {
+      throw new ForbiddenException('Only an admin or the owner of the library can move its assets');
+    }
+
+    const results: LibraryAssetMoveResultDto[] = [];
+    const movedIds: string[] = [];
+    const filesToDelete: string[] = [];
+
+    const tasks: Array<{ result: LibraryAssetMoveResultDto; assetId?: string; fromPath?: string }> = [];
+    if (dto.items) {
+      for (const item of dto.items) {
+        tasks.push({
+          result: { assetId: item.assetId, fromPath: item.fromPath, toPath: item.toPath, success: false },
+          assetId: item.assetId,
+          fromPath: item.fromPath === undefined ? undefined : normalizePath(item.fromPath),
+        });
+      }
+    } else {
+      const fromPrefix = normalizePath(dto.fromPrefix!);
+      const toPrefix = normalizePath(dto.toPrefix!);
+      if (!isAbsolute(fromPrefix) || !isAbsolute(toPrefix) || !isInsideAny(toPrefix, library.importPaths)) {
+        throw new BadRequestException('fromPrefix and toPrefix must be absolute and toPrefix inside the import paths');
+      }
+
+      const assets = await this.libraryRepository.getAssetsForMoveByPrefix(library.id, fromPrefix);
+      for (const asset of assets) {
+        const toPath = toPrefix + asset.originalPath.slice(fromPrefix.length);
+        tasks.push({
+          result: { assetId: asset.id, fromPath: asset.originalPath, toPath, success: false },
+          assetId: asset.id,
+        });
+      }
+    }
+
+    for (const task of tasks) {
+      const { result } = task;
+      try {
+        const error = await this.moveAsset(library, task, result, movedIds, filesToDelete);
+        if (error) {
+          result.error = error.code;
+          result.message = error.message;
+        } else {
+          result.success = true;
+        }
+      } catch (error: any) {
+        this.logger.error(`Unable to move asset ${task.assetId ?? task.fromPath} in library ${library.id}: ${error}`);
+        result.error = LibraryAssetMoveError.Failed;
+        result.message = String(error?.message ?? error);
+      }
+      results.push(result);
+    }
+
+    if (filesToDelete.length > 0) {
+      await this.jobRepository.queue({ name: JobName.FileDelete, data: { files: filesToDelete } });
+    }
+
+    if (movedIds.length > 0) {
+      // re-discover the sidecar of the moved originals (read only)
+      await this.jobRepository.queueAll(
+        movedIds.map((assetId) => ({ name: JobName.SidecarCheck, data: { id: assetId } })),
+      );
+    }
+
+    const moved = results.filter(({ success }) => success).length;
+    this.logger.log(`Moved ${moved} of ${results.length} asset(s) in library ${library.id}`);
+
+    return { moved, failed: results.length - moved, items: results };
+  }
+
+  private async moveAsset(
+    library: { id: string; importPaths: string[]; exclusionPatterns: string[] },
+    task: { assetId?: string; fromPath?: string },
+    result: LibraryAssetMoveResultDto,
+    movedIds: string[],
+    filesToDelete: string[],
+  ): Promise<{ code: LibraryAssetMoveError; message: string } | undefined> {
+    const asset = await this.libraryRepository.getAssetForMove(library.id, {
+      id: task.assetId,
+      originalPath: task.fromPath,
+    });
+    if (!asset || !asset.isExternal) {
+      return { code: LibraryAssetMoveError.NotFound, message: 'Asset not found in this library' };
+    }
+
+    result.assetId = asset.id;
+    result.fromPath = asset.originalPath;
+
+    const toPath = normalizePath(result.toPath);
+    if (!isAbsolute(result.toPath) || !isInsideAny(toPath, library.importPaths)) {
+      return {
+        code: LibraryAssetMoveError.InvalidPath,
+        message: 'toPath must be absolute and inside the import paths',
+      };
+    }
+
+    if (!mimeTypes.isAsset(toPath)) {
+      return { code: LibraryAssetMoveError.InvalidPath, message: 'toPath is not a supported media file' };
+    }
+
+    if (library.exclusionPatterns.some((pattern) => picomatch.isMatch(toPath, pattern, { nocase: true }))) {
+      return { code: LibraryAssetMoveError.InvalidPath, message: 'toPath matches an exclusion pattern' };
+    }
+
+    if (toPath === asset.originalPath) {
+      return;
+    }
+
+    const stat = await this.storageRepository.stat(toPath).catch(() => null);
+    if (!stat?.isFile()) {
+      return { code: LibraryAssetMoveError.NotOnDisk, message: 'toPath does not exist on disk' };
+    }
+
+    const checksum = this.cryptoRepository.hashSha1(`path:${toPath}`);
+    const occupant = await this.assetRepository.getByChecksum({
+      ownerId: asset.ownerId,
+      libraryId: library.id,
+      checksum,
+    });
+    // a stale row (offline, or a tombstone of a deleted file that was overwritten) gives way to the moved asset
+    if (occupant && !occupant.isOffline && occupant.status !== AssetStatus.Deleted) {
+      return {
+        code: LibraryAssetMoveError.Conflict,
+        message: `toPath is already used by asset ${occupant.id}`,
+      };
+    }
+
+    const removed = await this.libraryRepository.moveAsset(
+      asset.id,
+      {
+        originalPath: toPath,
+        originalFileName: parse(toPath).base,
+        checksum,
+        isOffline: false,
+        // an asset that went offline by itself returns from the trash, one trashed by a user stays there
+        ...(asset.isOffline && asset.status === AssetStatus.Active ? { deletedAt: null } : {}),
+      },
+      occupant?.id,
+    );
+
+    if (occupant) {
+      this.logger.debug(`Removed stale asset ${occupant.id} that occupied ${toPath} in library ${library.id}`);
+      filesToDelete.push(...removed);
+    }
+
+    movedIds.push(asset.id);
+  }
+
+  /**
+   * Q Space: checks only the existing assets below the given paths. The library wide check of import paths and
+   * exclusion patterns (detectOfflineExternalAssets) is skipped: it does not depend on the signalled paths.
+   */
+  private async queueSyncAssetsForPaths(
+    library: { id: string; importPaths: string[]; exclusionPatterns: string[] },
+    paths: string[],
+  ): Promise<JobStatus> {
+    const assetIds: string[] = [];
+    for await (const asset of this.libraryRepository.streamAssetIds(library.id, paths)) {
+      assetIds.push(asset.id);
+    }
+
+    for (let i = 0; i < assetIds.length; i += JOBS_LIBRARY_PAGINATION_SIZE) {
+      const chunk = assetIds.slice(i, i + JOBS_LIBRARY_PAGINATION_SIZE);
+      await this.jobRepository.queue({
+        name: JobName.LibrarySyncAssets,
+        data: {
+          libraryId: library.id,
+          importPaths: library.importPaths,
+          exclusionPatterns: library.exclusionPatterns,
+          assetIds: chunk,
+          progressCounter: i + chunk.length,
+          totalAssets: assetIds.length,
+        },
+      });
+    }
+
+    this.logger.log(
+      `Queued check of ${assetIds.length} existing asset(s) below ${paths.length} path(s) in library ${library.id}`,
+    );
+
+    return JobStatus.Success;
+  }
+
   private async findOrFail(id: string) {
     const library = await this.libraryRepository.get(id);
     if (!library) {
@@ -782,3 +1057,20 @@ export class LibraryService extends BaseService {
     return library;
   }
 }
+
+/** `path.normalize` without the trailing separator, the same form that the crawler stores in `originalPath` */
+const normalizePath = (value: string) => {
+  const normalized = path.normalize(value);
+  return normalized.length > 1 && normalized.endsWith('/') ? normalized.slice(0, -1) : normalized;
+};
+
+/** `child` equals `parent` or lies below it */
+const isInside = (child: string, parent: string) => {
+  const normalizedParent = normalizePath(parent);
+  if (child === normalizedParent) {
+    return true;
+  }
+  return child.startsWith(normalizedParent.endsWith('/') ? normalizedParent : `${normalizedParent}/`);
+};
+
+const isInsideAny = (child: string, parents: string[]) => parents.some((parent) => isInside(child, parent));

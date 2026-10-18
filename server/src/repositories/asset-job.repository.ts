@@ -9,6 +9,7 @@ import { DB } from 'src/schema';
 import {
   anyUuid,
   asUuid,
+  isExternalTombstone,
   withAudioStream,
   withDefaultVisibility,
   withEdits,
@@ -42,7 +43,7 @@ export class AssetJobRepository {
     return this.db
       .selectFrom('asset')
       .where('asset.id', '=', asUuid(id))
-      .select(['id', 'originalPath'])
+      .select(['id', 'originalPath', 'isExternal'])
       .select((eb) => withFiles(eb, AssetFileType.Sidecar))
       .$call(withExifInner)
       .limit(1)
@@ -276,6 +277,8 @@ export class AssetJobRepository {
         'asset.livePhotoVideoId',
         'asset.originalPath',
         'asset.isOffline',
+        'asset.isExternal',
+        'asset.status',
       ])
       .$call(withExif)
       .select(withFiles)
@@ -412,6 +415,7 @@ export class AssetJobRepository {
       .selectFrom('asset')
       .select(['id', 'isOffline'])
       .where('asset.deletedAt', '<=', trashedBefore)
+      .where((eb) => eb.not(isExternalTombstone(eb)))
       .stream();
   }
 
